@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "es2022"
+    ],
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "declaration": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "removeComments": true,
+    "outDir": "./dist/",
+    "types": ["vitest/globals", "node"],
+    "skipLibCheck": true
+  },
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": [
+    ".git",
+    "node_modules"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "name": "cr-26",
+  "version": "0.1.0",
+  "description": "TypeScript components made with pure functions",
+  "type": "module",
+  "main": "dist/cr-26.js",
+  "types": "dist/cr-26.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/cr-26.d.ts",
+      "import": "./dist/cr-26.js"
+    },
+    "./test": {
+      "types": "./dist/component-test.d.ts",
+      "import": "./dist/component-test.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "ts:check": "tsc --noEmit",
+    "ts:build": "rm -rf ./dist && tsc -p tsconfig.build.json && esbuild dist/*.js --minify --outdir=dist --allow-overwrite --define:process.env.NODE_ENV='\"production\"'",
+    "test": "vitest run",
+    "lint": "eslint 'src/**/*.ts'",
+    "check:project": "yarn ts:check && yarn lint && cd examples/spa && yarn ts:check && yarn lint && cd ../hello-world && yarn ts:check && yarn lint && cd ../../"
+  },
+  "author": "Robert Crawford",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robCrawford/cr-26"
+  },
+  "homepage": "https://github.com/robCrawford/cr-26#readme",
+  "bugs": {
+    "url": "https://github.com/robCrawford/cr-26/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "pure-functions",
+    "actions",
+    "unidirectional",
+    "hyperscript",
+    "typescript",
+    "virtual-dom",
+    "state-management",
+    "ui-framework",
+    "functional"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/jsdom": "^28.0.0",
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
+    "@vitest/ui": "^4.1.0",
+    "esbuild": "^0.27.2",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "jsdom": "^28.1.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "hyperscript-helpers": "^3.0.3",
+    "snabbdom": "^3.6.3"
+  },
+  "files": [
+    "dist/"
+  ]
+}
