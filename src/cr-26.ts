@@ -90,7 +90,8 @@ function createActionThunk(componentId: string, actionName: string, data: unknow
   } = (thunkInput) => {
     const instance = componentRegistry.get(componentId);
     if (!instance) {
-      throw Error(`${componentId} not found`);
+      // Component was unmounted - silently ignore (expected for async task callbacks)
+      return;
     }
     if (isDomEvent(thunkInput)) {
       executeAction(instance, actionName, data, thunkInput as Event);
@@ -124,7 +125,8 @@ function createTaskThunk(componentId: string, taskName: string, data: unknown): 
     if (isDomEvent(thunkInput) || thunkInput === internalKey) {
       const instance = componentRegistry.get(componentId);
       if (!instance) {
-        throw Error(`${componentId} not found`);
+        // Component was unmounted - silently ignore (expected for async operations)
+        return Promise.resolve();
       }
       const result = performTask(instance, taskName, data);
       return result.then((next?: Next) => runNext(instance, next));
@@ -245,6 +247,12 @@ function performTask(
 }
 
 function runNext(instance: ComponentInstance, next: Next | undefined): void {
+  // Check if component still exists before processing next
+  if (!componentRegistry.has(instance.id)) {
+    // Component was unmounted - silently ignore
+    return;
+  }
+
   if (!next) {
     renderComponentInstance(instance);
   } else if (isThunk(next)) {

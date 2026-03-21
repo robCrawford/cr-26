@@ -1,6 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { component, mount, html, subscribe, unsubscribe, Config, VNode } from "./cr-26";
+import {
+  component,
+  mount,
+  html,
+  subscribe,
+  unsubscribe,
+  componentRegistry,
+  Config,
+  VNode
+} from "./cr-26";
 import { log } from "./log";
 import { JSDOM } from "jsdom";
 
@@ -1086,6 +1095,91 @@ describe("Lifecycle and Data Flow", () => {
       // Verify props were used correctly
       expect(currentState?.value).toBe("full-test");
       expect(currentState?.counter).toBe(100);
+    });
+  });
+
+  describe("Component Unmount Handling", () => {
+    it("should silently ignore actions from unmounted components", async () => {
+      // When a component unmounts while an async task is in-flight,
+      // the task's success/failure callback will try to execute an action
+      // on a non-existent component.
+      // The framework should silently ignore actions on unmounted components
+      let taskResolve: ((value: string) => void) | undefined;
+      let successCallbackExecuted = false;
+
+      const childWithAsyncTask = component<{
+        Props: Record<string, never>;
+        State: { data: string };
+        ActionPayloads: { SetData: { data: string } };
+        TaskPayloads: { FetchData: null };
+      }>(({ action, task }) => ({
+        state: () => ({ data: "" }),
+        init: task("FetchData"),
+        actions: {
+          SetData: ({ data }, { state }) => {
+            return { state: { ...state, data } };
+          }
+        },
+        tasks: {
+          FetchData: () => ({
+            perform: () =>
+              new Promise<string>((resolve) => {
+                taskResolve = resolve; // Capture resolver
+              }),
+            success: (result) => {
+              successCallbackExecuted = true;
+              return action("SetData", { data: result });
+            }
+          })
+        },
+        view: (id, { state }) => div(`#${id}`, `Child: ${state.data}`)
+      }));
+
+      // Create parent that can toggle child
+      const parentWithToggle = component<{
+        Props: Record<string, never>;
+        State: { showChild: boolean };
+        ActionPayloads: { Toggle: null };
+      }>(({ action: a }) => {
+        return {
+          state: () => ({ showChild: true }),
+          actions: {
+            Toggle: (_, { state }) => ({ state: { ...state, showChild: !state.showChild } })
+          },
+          view: (id, { state }) =>
+            div(`#${id}`, [
+              button(`#toggle-button`, { on: { click: a("Toggle") } }, "Toggle"),
+              state.showChild ? childWithAsyncTask("#child", {}) : null
+            ])
+        };
+      });
+
+      // Re-mount with new parent
+      mount({ app: parentWithToggle, props: {} });
+
+      await new Promise((resolve) => setTimeout(resolve, 1));
+
+      expect(componentRegistry.has("child")).toBe(true);
+      expect(taskResolve).toBeDefined();
+
+      // Unmount child while task is in-flight by clicking toggle button
+      const toggleButton = document.querySelector("#toggle-button");
+      expect(toggleButton).toBeTruthy();
+      const clickEvent = new dom.window.Event("click");
+      toggleButton?.dispatchEvent(clickEvent);
+
+      await new Promise((resolve) => setTimeout(resolve, 1));
+
+      // Verify child is removed from registry
+      expect(componentRegistry.has("child")).toBe(false);
+
+      // Resolve task AFTER unmount
+      taskResolve!("loaded-data");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Success callback is executed (it's already queued in the Promise chain)
+      expect(successCallbackExecuted).toBe(true);
+      expect(componentRegistry.has("app")).toBe(true);
     });
   });
 });
