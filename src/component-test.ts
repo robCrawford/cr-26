@@ -77,6 +77,21 @@ export type TaskTestSpec<
   ) => NextData | NextData[] | undefined;
 };
 
+// Helper to narrow type to a single next output
+export const expectNextSingle = (next: NextData | NextData[] | undefined): NextData => {
+  if (!next || Array.isArray(next)) {
+    throw new Error("Expected next to be a single item");
+  }
+  return next;
+};
+// Helper to narrow type to an array of next outputs
+export const expectNextArray = (next: NextData | NextData[] | undefined): NextData[] => {
+  if (!Array.isArray(next)) {
+    throw new Error("Expected next to be an array");
+  }
+  return next;
+};
+
 // Returns next action/task inputs as data
 const nextToData = (name: string, data?: Record<string, unknown>): NextData => ({ name, data });
 

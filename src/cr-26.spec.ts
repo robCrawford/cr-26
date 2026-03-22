@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { vi } from "vitest";
 import { renderComponent, _setTestKey, html, VNode } from "./cr-26";
 import * as vdom from "./vdom";
-import { Context, GetActionThunk } from "./cr-26.types";
+import { ActionHandler, ActionThunk, Context, GetActionThunk } from "./cr-26.types";
 const { div } = html;
 
 const patchSpy = vi.spyOn(vdom, "patch");
@@ -14,7 +13,7 @@ describe("cr-26", () => {
   let componentId = 0;
   const getId = () => `_${componentId++}`;
 
-  function view(id: string, ctx: Context<any, any, any>): VNode {
+  function view(id: string, ctx: Context<unknown, { count: number }, unknown>): VNode {
     state = ctx.state ?? { count: 0 };
     return div(`#${id}`, "Test");
   }
@@ -30,22 +29,25 @@ describe("cr-26", () => {
     const numTestActions = 20;
 
     const id = getId();
-    const initialVnode = renderComponent(id, ({ action: a }) => {
+    const initialVnode = renderComponent<{
+      State: { count: number };
+      ActionPayloads: Record<string, unknown>;
+    }>(id, ({ action: a }) => {
       action = a;
       const actions: Record<
         string,
-        (data: any, ctx: any) => { state: { count: number }; next?: any }
+        ActionHandler<unknown, unknown, { count: number }, unknown>
       > = {};
 
       for (let i = 1; i < numTestActions; i++) {
-        actions["Increment" + i] = (_: any, { state }: { state: { count: number } }) => {
+        actions["Increment" + i] = (_, { state }: { state: { count: number } }) => {
           return {
             state: { ...state, count: state.count + 1 },
             next: action("Increment" + (i + 1))
           };
         };
       }
-      actions["Increment" + numTestActions] = (_: any, { state }: { state: { count: number } }) => {
+      actions["Increment" + numTestActions] = (_, { state }: { state: { count: number } }) => {
         return {
           state: { ...state, count: state.count + 1 }
         };
@@ -74,23 +76,26 @@ describe("cr-26", () => {
     const numTestActions = 20;
 
     const id = getId();
-    const initialVnode = renderComponent(id, ({ action: a }) => {
+    const initialVnode = renderComponent<{
+      State: { count: number };
+      ActionPayloads: Record<string, unknown>;
+    }>(id, ({ action: a }) => {
       action = a;
       const actions: Record<
         string,
-        (data: any, ctx: any) => { state: { count: number }; next?: any }
+        ActionHandler<unknown, unknown, { count: number }, unknown>
       > = {};
-      const incrementRetActions: any[] = [];
+      const incrementRetActions: ActionThunk[] = [];
 
       for (let i = 1; i <= numTestActions; i++) {
-        actions["Increment" + i] = (_: any, { state }: { state: { count: number } }) => {
+        actions["Increment" + i] = (_, { state }: { state: { count: number } }) => {
           return {
             state: { ...state, count: state.count + 1 }
           };
         };
         incrementRetActions.push(action("Increment" + i));
       }
-      actions["Increment"] = (_: any, { state }: { state: { count: number } }) => ({
+      actions["Increment"] = (_, { state }: { state: { count: number } }) => ({
         state,
         next: incrementRetActions
       });
@@ -134,26 +139,30 @@ describe("cr-26", () => {
   function runActionsWithPromise(
     numTestActions: number,
     expectedPatchCount: number,
-    done: any,
+    done: () => void,
     initialAction?: string
   ) {
     const id = getId();
-    const initialVnode = renderComponent(id, ({ action: a, task }) => {
+    const initialVnode = renderComponent<{
+      State: { count: number };
+      ActionPayloads: Record<string, unknown>;
+      TaskPayloads: Record<string, unknown>;
+    }>(id, ({ action: a, task }) => {
       action = a;
       const actions: Record<
         string,
-        (data: any, ctx: any) => { state: { count: number }; next?: any }
+        ActionHandler<unknown, unknown, { count: number }, unknown>
       > = {};
 
       for (let i = 1; i < numTestActions; i++) {
-        actions["Increment" + i] = (_: any, { state }: { state: { count: number } }) => {
+        actions["Increment" + i] = (_, { state }: { state: { count: number } }) => {
           return {
             state: { ...state, count: state.count + 1 },
             next: action("Increment" + (i + 1))
           };
         };
       }
-      actions["Increment" + numTestActions] = (_: any, { state }: { state: { count: number } }) => {
+      actions["Increment" + numTestActions] = (_, { state }: { state: { count: number } }) => {
         const newState = { ...state, count: state.count + 1 };
         setTimeout(() => {
           // After last action has been processed
@@ -169,16 +178,16 @@ describe("cr-26", () => {
 
       // Overwrite middle action with task
       const midIndex = numTestActions / 2;
-      actions["Increment" + midIndex] = (_: any, { state }: { state: { count: number } }) => {
+      actions["Increment" + midIndex] = (_, { state }: { state: { count: number } }) => {
         return {
           state: { ...state, count: state.count + 1 },
-          next: (task as any)("TestAsync")
+          next: task("TestAsync")
         };
       };
 
       return {
         state: () => ({ count: 0 }),
-        init: initialAction ? (a as any)(initialAction) : undefined,
+        init: initialAction ? a(initialAction) : undefined,
         actions,
         tasks: {
           TestAsync: () => ({
@@ -200,25 +209,29 @@ describe("cr-26", () => {
   it("should patch twice when a promise returns an array of actions", () => {
     return new Promise<void>((resolve) => {
       const id = getId();
-      const initialVnode = renderComponent(id, ({ action: a, task }) => {
+      const initialVnode = renderComponent<{
+        State: { count: number };
+        ActionPayloads: Record<string, unknown>;
+        TaskPayloads: Record<string, unknown>;
+      }>(id, ({ action: a, task }) => {
         action = a;
 
         return {
           state: () => ({ count: 0 }),
           actions: {
-            Increment1: (_: any, ctx: any) => {
+            Increment1: (_, ctx) => {
               return {
-                state: { ...ctx.state, count: (ctx.state.count as number) + 1 },
-                next: (task as any)("TestAsync")
+                state: { ...ctx.state, count: ctx.state.count + 1 },
+                next: task("TestAsync")
               };
             },
-            Increment2: (_: any, ctx: any) => {
+            Increment2: (_, ctx) => {
               return {
-                state: { ...ctx.state, count: (ctx.state.count as number) + 1 }
+                state: { ...ctx.state, count: ctx.state.count + 1 }
               };
             },
-            Increment3: (_: any, ctx: any) => {
-              const newState = { ...ctx.state, count: (ctx.state.count as number) + 1 };
+            Increment3: (_, ctx) => {
+              const newState = { ...ctx.state, count: ctx.state.count + 1 };
               setTimeout(() => {
                 // After last action has been processed
                 logResult(newState.count, patchSpy.mock.calls.length);
@@ -276,15 +289,21 @@ describe("cr-26", () => {
 
   function runMixedActions(numTestActions: number, initialAction?: string) {
     const id = getId();
-    const initialVnode = renderComponent(id, ({ action: a }) => {
+    const initialVnode = renderComponent<{
+      State: { count: number };
+      ActionPayloads: Record<string, unknown>;
+    }>(id, ({ action: a }) => {
       action = a;
-      const actions: Record<string, any> = {};
-      const actionsArray1: any[] = [];
-      const actionsArray2: any[] = [];
+      const actions: Record<
+        string,
+        ActionHandler<unknown, unknown, { count: number }, unknown>
+      > = {};
+      const actionsArray1: ActionThunk[] = [];
+      const actionsArray2: ActionThunk[] = [];
 
       // Array of single increment actions that return nothing
       for (let i = 1; i <= numTestActions; i++) {
-        actions["IncrementA1-" + i] = (_: any, ctx: any) => {
+        actions["IncrementA1-" + i] = (_, ctx) => {
           return {
             state: { ...ctx.state, count: ctx.state.count + 1 }
           };
@@ -293,14 +312,14 @@ describe("cr-26", () => {
       }
       // Series of increment actions "IncrementS1-1" - "IncrementS1-19"
       for (let i = 1; i < numTestActions; i++) {
-        actions["IncrementS1-" + i] = (_: any, ctx: any) => {
+        actions["IncrementS1-" + i] = (_, ctx) => {
           return {
             state: { ...ctx.state, count: ctx.state.count + 1 },
             next: action("IncrementS1-" + (i + 1))
           };
         };
       }
-      actions["IncrementS1-" + numTestActions] = (_: any, ctx: any) => {
+      actions["IncrementS1-" + numTestActions] = (_, ctx) => {
         // "IncrementS1-20" returns `actionsArray1` array
         return {
           state: { ...ctx.state, count: ctx.state.count + 1 },
@@ -309,20 +328,20 @@ describe("cr-26", () => {
       };
       // Series of increment actions "IncrementS2-1" - "IncrementS2-10"
       for (let i = 1; i < numTestActions / 2; i++) {
-        actions["IncrementS2-" + i] = (_: any, ctx: any) => {
+        actions["IncrementS2-" + i] = (_, ctx) => {
           return {
             state: { ...ctx.state, count: ctx.state.count + 1 },
             next: action("IncrementS2-" + (i + 1))
           };
         };
       }
-      actions["IncrementS2-" + numTestActions / 2] = (_: any, ctx: any) => {
+      actions["IncrementS2-" + numTestActions / 2] = (_, ctx) => {
         return { state: { ...ctx.state, count: ctx.state.count + 1 } };
       };
 
       // "IncrementA2-Init" returns `actionsArray2` array
       for (let i = 1; i <= numTestActions; i++) {
-        actions["IncrementA2-" + i] = (_: any, ctx: any) => {
+        actions["IncrementA2-" + i] = (_, ctx) => {
           // Half return chain "IncrementS1-1" - "IncrementS1-20",
           // where "IncrementS1-20" returns `actionsArray1`
           if (i % 2) {
@@ -341,14 +360,14 @@ describe("cr-26", () => {
         };
         actionsArray2.push(action("IncrementA2-" + i));
       }
-      actions["IncrementA2-Init"] = (_: any, ctx: any) => ({
+      actions["IncrementA2-Init"] = (_, ctx) => ({
         state: ctx.state,
         next: actionsArray2
       });
 
       return {
         state: () => ({ count: 0 }),
-        init: initialAction ? (a as any)(initialAction) : undefined,
+        init: initialAction ? a(initialAction) : undefined,
         actions,
         view
       };

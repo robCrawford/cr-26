@@ -1,4 +1,4 @@
-import { componentTest, NextData } from "cr-26/test";
+import { expectNextSingle, expectNextArray, componentTest } from "cr-26/test";
 import counter, { State, Component } from "./counter";
 
 describe("Counter component", () => {
@@ -25,7 +25,7 @@ describe("Counter component", () => {
     });
 
     it("should return next", () => {
-      const { name, data } = next as NextData;
+      const { name, data } = expectNextSingle(next);
       expect(name).toBe("Validate");
       expect(data).toBeUndefined();
     });
@@ -42,7 +42,7 @@ describe("Counter component", () => {
     });
 
     it("should return next", () => {
-      const { name, data } = next as NextData;
+      const { name, data } = expectNextSingle(next);
       expect(name).toBe("Validate");
       expect(data).toBeUndefined();
     });
@@ -56,17 +56,14 @@ describe("Counter component", () => {
     });
 
     it("should return next", () => {
-      expect(Array.isArray(next)).toBe(true);
+      const nextItems = expectNextArray(next);
+      expect(nextItems.length).toBe(2);
 
-      if (Array.isArray(next)) {
-        expect(next.length).toBe(2);
+      expect(nextItems[0].name).toBe("SetFeedback");
+      expect(nextItems[0].data).toEqual({ text: "Validating..." });
 
-        expect(next[0].name).toBe("SetFeedback");
-        expect(next[0].data).toEqual({ text: "Validating..." });
-
-        expect(next[1].name).toBe("ValidateCount");
-        expect(next[1].data).toEqual({ count: 0 });
-      }
+      expect(nextItems[1].name).toBe("ValidateCount");
+      expect(nextItems[1].data).toEqual({ count: 0 });
     });
   });
 
@@ -93,13 +90,13 @@ describe("Counter component", () => {
     });
 
     it("should handle success", () => {
-      const { name, data } = success?.({ text: "Success test" }) as NextData;
+      const { name, data } = expectNextSingle(success?.({ text: "Success test" }));
       expect(name).toBe("SetFeedback");
       expect(data).toEqual({ text: "Success test" });
     });
 
     it("should handle failure", () => {
-      const { name, data } = failure?.("") as NextData;
+      const { name, data } = expectNextSingle(failure?.(""));
       expect(name).toBe("SetFeedback");
       expect(data).toEqual({ text: "Unavailable" });
     });

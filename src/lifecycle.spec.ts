@@ -1,9 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { vi } from "vitest";
 import {
   _setTestKey,
   _resetForTest,
+  ActionThunk,
   component,
+  GetConfig,
   html,
   mount,
   componentRegistry,
@@ -97,7 +98,7 @@ describe("Component Lifecycle & State Management", () => {
     it("should invalidate thunk cache on component cleanup", () => {
       let parentAction: Function = () => {};
       let childAction: Function = () => {};
-      let cachedChildThunk: any;
+      let cachedChildThunk;
 
       const child = component<{
         Props: Record<string, never>;
@@ -165,7 +166,7 @@ describe("Component Lifecycle & State Management", () => {
   describe("Props Management", () => {
     it("should freeze props deeply and prevent mutation", () => {
       let action: Function = () => {};
-      let capturedProps: any;
+      let capturedProps: { data: { value?: number } } = { data: {} };
 
       const comp = component<{
         Props: { data: { value: number } };
@@ -485,9 +486,12 @@ describe("Component Lifecycle & State Management", () => {
       const getId = () => `_${componentId++}`;
       const childId = getId();
 
-      const getConfig = () => ({
+      const getConfig: GetConfig<{
+        Props: { message: string };
+        State: { internalState: number };
+      }> = () => ({
         state: () => ({ internalState: 0 }),
-        view: (id: string, { props }: any) => {
+        view: (id: string, { props }) => {
           const msg = props?.message || "";
           childViewCalls.push(msg);
           return div(`#${id}.child`, msg);
@@ -563,7 +567,7 @@ describe("Component Lifecycle & State Management", () => {
       let parentAction: Function = () => {};
 
       const child = component<{
-        Props: { onAction: any };
+        Props: { onAction: ActionThunk };
         State: Record<string, never>;
         Actions: Record<string, never>;
       }>(() => {
@@ -607,7 +611,7 @@ describe("Component Lifecycle & State Management", () => {
       expect(childInstance).toBeDefined();
 
       // Simulate child calling parent action
-      const onAction = childInstance?.props?.onAction as any;
+      const onAction = childInstance?.props?.onAction;
       if (onAction && typeof onAction === "function") {
         onAction(testKey);
       }
@@ -733,7 +737,7 @@ describe("Component Lifecycle & State Management", () => {
     });
 
     it("should handle undefined props becoming defined", () => {
-      const viewCalls: Array<any> = [];
+      const viewCalls: Array<{ value?: string }> = [];
       let action: Function = () => {};
 
       const child = component<{

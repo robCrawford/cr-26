@@ -46,6 +46,7 @@ export type ActionHandler<TData, TProps, TState, TRootState> = (
 
 export type TaskHandler<TData, TProps, TState, TRootState> = (
   data: TData
+  // TResult/TError vary per task so cannot be typed at this level
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Task<any, TProps, TState, TRootState, any>;
 
@@ -67,6 +68,7 @@ export type Component = {
 
 export type ComponentInstance = {
   id: string;
+  // Each instance has a different `TComponent` so cannot be typed at this level
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: Config<any>;
   state?: Record<string, unknown>;

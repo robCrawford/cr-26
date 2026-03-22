@@ -1,4 +1,4 @@
-import { componentTest, NextData } from "cr-26/test";
+import { componentTest, expectNextSingle } from "cr-26/test";
 import app, { State, Component } from "./app";
 
 describe("App", () => {
@@ -32,7 +32,7 @@ describe("App", () => {
     });
 
     it("should return next", () => {
-      const { name, data } = next as NextData;
+      const { name, data } = expectNextSingle(next);
       expect(name).toBe("SetDocTitle");
       expect(data).toEqual({ title: "Hello World!" });
     });
@@ -46,13 +46,13 @@ describe("App", () => {
     });
 
     it("should handle success", () => {
-      const { name, data } = success?.() as NextData;
+      const { name, data } = expectNextSingle(success?.());
       expect(name).toBe("PageReady");
       expect(data).toEqual({ done: true });
     });
 
     it("should handle failure", () => {
-      const { name, data } = failure?.() as NextData;
+      const { name, data } = expectNextSingle(failure?.());
       expect(name).toBe("PageReady");
       expect(data).toEqual({ done: false });
     });

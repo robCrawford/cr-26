@@ -36,7 +36,7 @@ export const componentRegistry = new Map<string, ComponentInstance>();
 const actionThunkCache = new Map<string, ActionThunk>();
 const taskThunkCache = new Map<string, TaskThunk>();
 
-// Root component references
+// The root component's type is not known until `renderComponent()`
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let rootAction: GetActionThunk<any> | undefined;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +94,7 @@ function createActionThunk(componentId: string, actionName: string, data: unknow
       return;
     }
     if (isDomEvent(thunkInput)) {
-      executeAction(instance, actionName, data, thunkInput as Event);
+      executeAction(instance, actionName, data, thunkInput);
     } else if (thunkInput === internalKey) {
       executeAction(instance, actionName, data);
     } else {
@@ -178,7 +178,7 @@ function executeAction(
     id,
     currStateChanged ? prevState : undefined,
     actionName,
-    data as Record<string, unknown>,
+    data,
     instance.state,
     hasStateConfig
   );
@@ -223,9 +223,10 @@ function performTask(
 
   try {
     const output = perform();
-    log.taskPerform(id, String(taskName), isPromise(output));
+    const isPromise = output instanceof Promise;
+    log.taskPerform(id, String(taskName), isPromise);
 
-    if (isPromise(output)) {
+    if (isPromise) {
       renderComponentInstance(instance); // Render pending state updates
       return output
         .then((result: unknown) => {
@@ -241,7 +242,7 @@ function performTask(
       return Promise.resolve(runSuccess(output));
     }
   } catch (err) {
-    log.taskFailure(id, String(taskName), err as Error);
+    log.taskFailure(id, String(taskName), err);
     return Promise.resolve(runFailure(err));
   }
 }
@@ -371,6 +372,7 @@ export function renderComponent<TComponent extends Component>(
   const config = getConfig({
     action,
     task,
+    // Assert root action/task types from the `Component` type
     rootAction: rootAction as GetActionThunk<TComponent["RootActionPayloads"]>,
     rootTask: rootTask as GetTaskThunk<TComponent["RootTaskPayloads"]>
   });
@@ -496,9 +498,10 @@ function isThunk(next: Next): next is ActionThunk | TaskThunk {
   return false;
 }
 
-function isPromise<TValue>(o: Promise<TValue> | unknown): o is Promise<TValue> {
-  return Boolean(o && (o as Promise<unknown>).then);
-}
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null &&
+  typeof value === "object" &&
+  (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 
 const deepFreeze =
   process.env.NODE_ENV !== "production"
@@ -508,11 +511,10 @@ const deepFreeze =
           Object.getOwnPropertyNames(o).forEach((p: string) => {
             if (
               Object.prototype.hasOwnProperty.call(o, p) &&
-              o[p] !== null &&
-              (typeof o[p] === "object" || typeof o[p] === "function") &&
+              isRecord(o[p]) &&
               !Object.isFrozen(o[p])
             ) {
-              deepFreeze(o[p] as Record<string, unknown>);
+              deepFreeze(o[p]);
             }
           });
         }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   component,
@@ -16,7 +15,8 @@ import { JSDOM } from "jsdom";
 const { div, button } = html;
 
 function getWindowState(): Record<string, RootState> | undefined {
-  return (window as unknown as { state?: Record<string, RootState> }).state;
+  // @ts-expect-error window.state added by log.ts
+  return window.state;
 }
 
 type RootProps = Readonly<{
@@ -423,7 +423,8 @@ describe("Lifecycle and Data Flow", () => {
     });
     originalWindow = globalThis.window;
     originalDocument = globalThis.document;
-    globalThis.window = dom.window as any;
+    // @ts-expect-error test window replacement
+    globalThis.window = dom.window;
     globalThis.document = dom.window.document;
 
     // Reset tracking
@@ -543,7 +544,10 @@ describe("Lifecycle and Data Flow", () => {
 
     it("should throw when attempting to mutate props", () => {
       // Props are frozen by the framework
-      const props: any = Object.freeze({ initialValue: "test", startAt: 0 });
+      const props: { initialValue: string; startAt: number } = Object.freeze({
+        initialValue: "test",
+        startAt: 0
+      });
 
       expect(() => {
         props.initialValue = "modified";
@@ -579,7 +583,7 @@ describe("Lifecycle and Data Flow", () => {
 
             // Try to mutate the frozen state
             try {
-              (state as unknown as Record<string, unknown>).value = "mutated";
+              state.value = "mutated";
             } catch {
               // Expected to fail - mutation should be blocked by frozen object
             }
@@ -607,8 +611,7 @@ describe("Lifecycle and Data Flow", () => {
       // Assert state is not null before using it
       if (!stateInAction) throw new Error("stateInAction should be set");
 
-      // Type assertion after null check - TypeScript control flow narrowing limitation
-      const checkedState = stateInAction as TestState;
+      const checkedState: TestState = stateInAction;
       expect(Object.isFrozen(checkedState)).toBe(true);
       // State value should not have changed due to mutation attempt
       expect(checkedState.value).toBe("original");
@@ -895,7 +898,7 @@ describe("Lifecycle and Data Flow", () => {
 
       // Verify it was called with component id and action names
       const calls = logSpies.updateStart.mock.calls;
-      const actionNames = calls.map((call: any[]) => call[2]);
+      const actionNames = calls.map((call: unknown[]) => call[2]);
 
       expect(actionNames).toContain("Step1_InitAction");
       expect(actionNames).toContain("Step2_HandleSyncSuccess");
@@ -915,7 +918,7 @@ describe("Lifecycle and Data Flow", () => {
       expect(logSpies.taskPerform).toHaveBeenCalled();
 
       const calls = logSpies.taskPerform.mock.calls;
-      const taskNames = calls.map((call: any[]) => call[1]);
+      const taskNames = calls.map((call: unknown[]) => call[1]);
 
       expect(taskNames).toContain("SyncTask");
       expect(taskNames).toContain("AsyncTask");
@@ -935,7 +938,7 @@ describe("Lifecycle and Data Flow", () => {
       expect(logSpies.taskSuccess).toHaveBeenCalled();
 
       const calls = logSpies.taskSuccess.mock.calls;
-      const taskNames = calls.map((call: any[]) => call[1]);
+      const taskNames = calls.map((call: unknown[]) => call[1]);
 
       expect(taskNames).toContain("SyncTask");
       expect(taskNames).toContain("AsyncTask");
@@ -954,7 +957,7 @@ describe("Lifecycle and Data Flow", () => {
       expect(logSpies.taskFailure).toHaveBeenCalled();
 
       const calls = logSpies.taskFailure.mock.calls;
-      const taskNames = calls.map((call: any[]) => call[1]);
+      const taskNames = calls.map((call: unknown[]) => call[1]);
 
       expect(taskNames).toContain("FailingTask");
     });
@@ -973,7 +976,7 @@ describe("Lifecycle and Data Flow", () => {
       expect(logSpies.render).toHaveBeenCalled();
 
       const calls = logSpies.render.mock.calls;
-      const componentIds = calls.map((call: any[]) => call[0]);
+      const componentIds = calls.map((call: unknown[]) => call[0]);
 
       expect(componentIds).toContain("app");
     });

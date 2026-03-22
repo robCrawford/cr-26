@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { vi } from "vitest";
 import { _setTestKey, component, html, mount } from "./cr-26";
 import * as vdom from "./vdom";
@@ -13,7 +12,7 @@ describe("RootState with Memoization", () => {
   let childActionCallCount = 0;
 
   // Track what rootState the child action handler saw
-  let seenRootStates: any[] = [];
+  let seenRootStates: Record<string, unknown>[] = [];
 
   beforeEach(() => {
     patchSpy.mockClear();
@@ -102,7 +101,7 @@ describe("RootState with Memoization", () => {
   });
 
   it("should handle rootState in task success callbacks with cached thunks", () => {
-    let taskRootState: any = null;
+    let taskRootState: Record<string, unknown> | null = null;
     let childTask: Function = () => {};
 
     const child = component<{

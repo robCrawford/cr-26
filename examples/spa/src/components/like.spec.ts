@@ -1,4 +1,4 @@
-import { componentTest } from "cr-26/test";
+import { componentTest, expectNextArray } from "cr-26/test";
 import like, { Component } from "./like";
 import { RootState } from "../app";
 
@@ -14,17 +14,14 @@ describe("Like component", () => {
     });
 
     it("should return next", () => {
-      expect(Array.isArray(next)).toBe(true);
+      const nextItems = expectNextArray(next);
+      expect(nextItems.length).toBe(2);
 
-      if (Array.isArray(next)) {
-        expect(next.length).toBe(2);
+      expect(nextItems[0].name).toBe("Like");
+      expect(nextItems[0].data).toEqual({ page: "counterPage" });
 
-        expect(next[0].name).toBe("Like");
-        expect(next[0].data).toEqual({ page: "counterPage" });
-
-        expect(next[1].name).toBe("SetDocTitle");
-        expect(next[1].data).toEqual({ title: "You like this!" });
-      }
+      expect(nextItems[1].name).toBe("SetDocTitle");
+      expect(nextItems[1].data).toEqual({ title: "You like this!" });
     });
   });
 });

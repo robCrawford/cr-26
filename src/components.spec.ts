@@ -16,7 +16,7 @@ describe("cr-26 components", () => {
   let childAction: Function = () => {};
   let validatePerform: Function = () => {};
 
-  const parentActions = {
+  const parentActions: Record<string, Mock> = {
     Increment: vi.fn(({ step }, { state }) => ({ state: { ...state, count: state.count + step } })),
     Decrement: vi.fn(({ step }, { state }) => ({ state: { ...state, count: state.count - step } }))
   };
@@ -37,9 +37,7 @@ describe("cr-26 components", () => {
     renderSpy.mockClear();
     validateSuccess.mockClear();
     validateFailure.mockClear();
-    Object.keys(parentActions).forEach((k) =>
-      (parentActions as Record<string, Mock>)[k].mockClear()
-    );
+    Object.keys(parentActions).forEach((k) => parentActions[k].mockClear());
   };
 
   // Initialise app

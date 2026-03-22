@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /*
 Logging for cr-26 lifecycle with Redux DevTools integration
 */
@@ -14,14 +13,23 @@ const logEnabled = logToConsole;
 // Redux DevTools integration
 interface DevToolsConnection {
   init(state: unknown): void;
-  send(action: { type: string; [key: string]: any }, state: unknown): void;
+  send(action: { type: string; [key: string]: unknown }, state: unknown): void;
+}
+
+declare global {
+  interface Window {
+    __REDUX_DEVTOOLS_EXTENSION__?: {
+      connect(options: { name: string; features: Record<string, boolean> }): DevToolsConnection;
+    };
+    state: Record<string, object | undefined | null>;
+  }
 }
 
 let devToolsConnection: DevToolsConnection | null = null;
 
 // Initialize Redux DevTools connection (if extension is active)
 if (typeof window !== "undefined") {
-  const devToolsExtension = (window as any).__REDUX_DEVTOOLS_EXTENSION__;
+  const devToolsExtension = window.__REDUX_DEVTOOLS_EXTENSION__;
   if (devToolsExtension) {
     devToolsConnection = devToolsExtension.connect({
       name: "cr-26 App",
@@ -42,18 +50,16 @@ if (typeof window !== "undefined") {
 }
 
 // Helper to get aggregated state for DevTools
-function getAggregatedState(): Record<string, any> {
-  const win = window as any;
+function getAggregatedState(): Record<string, object | undefined | null> {
   // Return a shallow copy to avoid mutating window.state
-  return { ...(win.state || {}) };
+  return { ...(window.state || {}) };
 }
 
 export const log = {
   setStateGlobal(id: string, state: object | undefined | null): void {
     // Maintain global state registry (DevTools and logging rely on this)
     // Called after actions update state and during render lifecycle
-    const win = window as unknown as { state: Record<string, object | undefined | null> };
-    const stateGlobal = win.state || (win.state = {});
+    const stateGlobal = window.state || (window.state = {});
 
     if (state === undefined || state === null) {
       delete stateGlobal[id];
@@ -93,15 +99,14 @@ export const log = {
     id: string,
     state: Record<string, unknown> | undefined | null,
     label: string,
-    data?: Record<string, unknown>,
+    data?: unknown,
     newState?: Record<string, unknown> | null,
     hasStateConfig?: boolean
   ): void {
     // Send to Redux DevTools with current state
     if (devToolsConnection && newState !== undefined) {
       // Update window.state FIRST so subsequent getAggregatedState() calls are accurate
-      const win = window as unknown as { state: Record<string, object | undefined | null> };
-      const stateGlobal = win.state || (win.state = {});
+      const stateGlobal = window.state || (window.state = {});
       stateGlobal[id] = newState;
 
       // Build aggregated state with the NEW state for this component
