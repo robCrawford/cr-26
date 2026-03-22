@@ -18,7 +18,8 @@
   "sideEffects": false,
   "scripts": {
     "ts:check": "tsc --noEmit",
-    "ts:build": "rm -rf ./dist && tsc -p tsconfig.build.json && esbuild dist/*.js --minify --outdir=dist --allow-overwrite --define:process.env.NODE_ENV='\"production\"'",
+    "ts:clean": "rm -rf ./dist",
+    "ts:build": "yarn ts:clean && tsc -p tsconfig.build.json && esbuild dist/*.js --minify --outdir=dist --allow-overwrite --define:process.env.NODE_ENV='\"production\"'",
     "test": "vitest run",
     "lint": "eslint 'src/**/*.ts'",
     "check:project": "yarn ts:check && yarn lint && yarn test && cd examples/spa && yarn ts:check && yarn lint && yarn test &&cd ../hello-world && yarn ts:check && yarn lint && yarn test && cd ../../"
