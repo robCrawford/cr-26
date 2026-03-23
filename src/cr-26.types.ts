@@ -1,9 +1,5 @@
 import { VNode } from "./vdom";
 
-type ValueOf<T> = T[keyof T];
-
-type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T;
-
 export enum ThunkType {
   Action,
   Task
@@ -22,7 +18,7 @@ export type GetActionThunk<TActions> = <TKey extends keyof TActions>(
 export type RunAction<TActions> = (actionName: keyof TActions, data?: ValueOf<TActions>) => void;
 
 export type TaskThunk = {
-  (data?: Record<string, unknown> | Event): Promise<Next | void> | void;
+  (data?: Record<string, unknown> | NormalizedEvent): Promise<Next | void> | void;
   type: ThunkType.Task;
   taskName: string;
   taskData?: unknown;
@@ -36,7 +32,7 @@ export type Context<TProps, TState, TRootState> = {
   props: TProps;
   state: TState;
   rootState: TRootState;
-  event?: Event;
+  event?: NormalizedEvent;
 };
 
 export type ActionHandler<TData, TProps, TState, TRootState> = (
@@ -113,3 +109,19 @@ export type GetConfig<TComponent extends Component> = (fns: {
 }) => Config<TComponent>;
 
 export type RenderFn<TProps> = (props?: TProps) => VNode | void;
+
+/*
+  Type Utils
+*/
+export type ValueOf<T> = T[keyof T];
+
+export type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T;
+
+type TargetInputProps = EventTarget &
+  Partial<Pick<HTMLInputElement, "value" | "checked" | "files" | "name" | "id">>;
+
+// Use in place of `Event` to access input target props without narrowing
+export type NormalizedEvent = Event & {
+  target: TargetInputProps | null;
+  currentTarget: TargetInputProps | null;
+};

@@ -9,6 +9,7 @@ import {
   GetConfig,
   GetTaskThunk,
   Next,
+  NormalizedEvent,
   RunAction,
   TaskThunk,
   ThunkType
@@ -487,7 +488,7 @@ export function mount<TActions, TProps>({
   }
 }
 
-function isDomEvent(e?: Record<string, unknown> | Event): e is Event {
+function isDomEvent(e?: Record<string, unknown> | Event): e is NormalizedEvent {
   return Boolean(e && "eventPhase" in e && "target" in e && "type" in e);
 }
 

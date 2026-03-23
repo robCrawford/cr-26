@@ -52,17 +52,12 @@ export default component<Component>(({ action }) => ({
   state: (): State => ({ filterText: "", selectedDate: null, showInfo: true }),
 
   actions: {
-    SetFilter: (_, { state, event }): { state: State } => {
-      const input = event?.target;
-      const filterText = input && "value" in input ? String(input.value) : "";
-
-      return {
-        state: {
-          ...state,
-          filterText
-        }
-      };
-    },
+    SetFilter: (_, { state, event }): { state: State } => ({
+      state: {
+        ...state,
+        filterText: event?.target?.value ?? ""
+      }
+    }),
     SelectDate: (_, { state, event }): { state: State } => {
       const id =
         event?.target instanceof Element
