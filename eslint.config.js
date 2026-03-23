@@ -3,6 +3,7 @@ import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
 import prettierConfig from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
+import globals from "globals";
 
 export default [
   {
@@ -15,30 +16,13 @@ export default [
       parser: tsparser,
       parserOptions: {
         ecmaVersion: 2022,
-        sourceType: "module"
+        sourceType: "module",
+        project: "./tsconfig.json"
       },
       globals: {
-        console: "readonly",
-        document: "readonly",
-        window: "readonly",
-        setTimeout: "readonly",
-        clearTimeout: "readonly",
-        setInterval: "readonly",
-        clearInterval: "readonly",
-        process: "readonly",
-        global: "readonly",
-        Event: "readonly",
-        URLSearchParams: "readonly",
-        CustomEvent: "readonly",
-        EventListener: "readonly",
-        EventTarget: "readonly",
-        HTMLElement: "readonly",
-        Element: "readonly",
-        Map: "readonly",
-        Set: "readonly",
-        Promise: "readonly",
-        WeakMap: "readonly",
-        WeakSet: "readonly"
+        ...globals.browser,
+        ...globals.es2022,
+        ...globals.node
       }
     },
     plugins: {
