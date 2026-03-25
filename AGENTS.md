@@ -431,7 +431,7 @@ See `examples/spa/src/pages/counterPage.spec.ts` for:
 - Testing page components with rootTask init
 
 ```typescript
-import { componentTest, expectNextSingle } from "cr-26/test";
+import { componentTest, expectOne } from "cr-26/test";
 
 const { initialState, actionTest, taskTest, config } = componentTest<Component>(counter, {
   start: 0
@@ -442,7 +442,7 @@ const { state, next } = actionTest<State>("Increment", { step: 1 });
 
 // Test task callbacks
 const { perform, success, failure } = taskTest("ValidateCount", { count: 0 });
-const { name, data } = expectNextSingle(success?.({ text: "Even" }));
+const { name, data } = expectOne(success?.({ text: "Even" }));
 ```
 
 ## Project Structure

@@ -190,7 +190,7 @@ Detailed lifecycle logging is also available in the browser console.
 For unit testing, `actionTest`/`taskTest` utilities allow testing without mocks, by returning plain data:
 
 ```JavaScript
-import { componentTest, expectNextSingle } from "cr-26/test";
+import { componentTest, expectOne } from "cr-26/test";
 import app, { State } from "./app";
 
 describe("App", () => {
@@ -219,7 +219,7 @@ describe("App", () => {
     });
 
     it("should return next", () => {
-      const { name, data } = expectNextSingle(next);
+      const { name, data } = expectOne(next);
       expect(name).toBe("SetDocTitle");
       expect(data).toEqual({ title: "Hello World!" });
     });
@@ -233,13 +233,13 @@ describe("App", () => {
     });
 
     it("should handle success", () => {
-      const { name, data } = expectNextSingle(success());
+      const { name, data } = expectOne(success());
       expect(name).toBe("PageReady");
       expect(data).toEqual({ done: true });
     });
 
     it("should handle failure", () => {
-      const { name, data } = expectNextSingle(failure());
+      const { name, data } = expectOne(failure());
       expect(name).toBe("PageReady");
       expect(data).toEqual({ done: false });
     });

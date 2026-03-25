@@ -1,4 +1,4 @@
-import { componentTest, expectNextArray } from "cr-26/test";
+import { componentTest, expectArray } from "cr-26/test";
 import like, { Component } from "./like";
 import { RootState } from "../app";
 
@@ -14,7 +14,7 @@ describe("Like component", () => {
     });
 
     it("should return next", () => {
-      const nextItems = expectNextArray(next);
+      const nextItems = expectArray(next);
       expect(nextItems.length).toBe(2);
 
       expect(nextItems[0].name).toBe("Like");

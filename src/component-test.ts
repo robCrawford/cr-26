@@ -77,28 +77,13 @@ export type TaskTestSpec<
   ) => NextData | NextData[] | undefined;
 };
 
-// Helper to narrow type to a single next output
-export const expectNextSingle = (next: NextData | NextData[] | undefined): NextData => {
-  if (!next || Array.isArray(next)) {
-    throw new Error("Expected next to be a single item");
-  }
-  return next;
-};
-// Helper to narrow type to an array of next outputs
-export const expectNextArray = (next: NextData | NextData[] | undefined): NextData[] => {
-  if (!Array.isArray(next)) {
-    throw new Error("Expected next to be an array");
-  }
-  return next;
-};
-
 // Returns next action/task inputs as data
 const nextToData = (name: string, data?: Record<string, unknown>): NextData => ({ name, data });
 
-export function componentTest<TComponent extends Partial<ComponentType>>(
+export const componentTest = <TComponent extends Partial<ComponentType>>(
   component: { getConfig: Function },
   props?: TComponent["Props"]
-): ComponentTestApi<TComponent["State"], TComponent["RootState"]> {
+): ComponentTestApi<TComponent["State"], TComponent["RootState"]> => {
   // Initialise component passing in `nextToData()` instead of `action()` and `task()` functions
   const config = component.getConfig({
     action: nextToData,
@@ -135,4 +120,18 @@ export function componentTest<TComponent extends Partial<ComponentType>>(
       return config.tasks[name](data);
     }
   };
-}
+};
+
+export const expectOne = <T>(item?: T | T[]): T => {
+  if (!item || Array.isArray(item)) {
+    throw new Error(`Expected a single item, received: ${JSON.stringify(item)}`);
+  }
+  return item;
+};
+
+export const expectArray = <T>(items?: T | T[]): T[] => {
+  if (!Array.isArray(items)) {
+    throw new Error(`Expected an array, received: ${JSON.stringify(items)}`);
+  }
+  return items;
+};
