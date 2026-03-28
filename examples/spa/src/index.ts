@@ -1,12 +1,12 @@
 import { mount, subscribe, RunAction } from "cr-26";
 import Navigo from "navigo";
-import app, { RootActionPayloads, RootProps } from "./app";
+import app, { RootActionPayloads } from "./app";
 import { routes } from "./routes";
 
 const router = new Navigo("/demos/cr-26/spa/");
 
 document.addEventListener("DOMContentLoaded", () =>
-  mount<RootActionPayloads, RootProps>({
+  mount<RootActionPayloads>({
     app,
     props: {},
 

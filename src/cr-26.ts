@@ -454,7 +454,7 @@ function setCleanup(instance: ComponentInstance): void {
   });
 }
 
-export function mount<TActions, TProps>({
+export function mount<TActions, TProps = Record<string, never>>({
   app,
   props,
   init

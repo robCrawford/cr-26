@@ -3,8 +3,6 @@ import counterPage from "./pages/counterPage";
 import listPage from "./pages/listPage";
 const { div } = html;
 
-export type RootProps = Readonly<Record<string, never>>;
-
 export type RootState = Readonly<{
   theme: Theme;
   page?: Page;
@@ -29,7 +27,6 @@ export type Page = "counterPage" | "listPage";
 export type Theme = "light" | "dark";
 
 export type Component = {
-  Props: RootProps;
   State: RootState;
   ActionPayloads: RootActionPayloads;
   TaskPayloads: RootTaskPayloads;
@@ -83,7 +80,7 @@ export default component<Component>(() => ({
 
   tasks: {
     // Demonstrates a task that is only an effect
-    SetDocTitle: ({ title }): Task<void, RootProps, RootState> => ({
+    SetDocTitle: ({ title }): Task<void, unknown, RootState> => ({
       perform: (): void => {
         document.title = title;
       }

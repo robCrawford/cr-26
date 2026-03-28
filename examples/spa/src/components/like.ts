@@ -6,15 +6,12 @@ export type Props = Readonly<{
   page: Page;
 }>;
 
-export type State = Readonly<Record<string, never>>;
-
 type ActionPayloads = Readonly<{
   Like: null;
 }>;
 
 export type Component = {
   Props: Props;
-  State: State;
   ActionPayloads: ActionPayloads;
   RootState: RootState;
   RootActionPayloads: RootActionPayloads;
@@ -23,8 +20,8 @@ export type Component = {
 
 export default component<Component>(({ action, rootAction, rootTask }) => ({
   actions: {
-    Like: (_, { props, state }): { state: State; next: Next } => ({
-      state, // Return existing state to avoid unnecessary render
+    Like: (_, { props, state }): { state: unknown; next: Next } => ({
+      state,
       next: [
         rootAction("Like", { page: props.page }),
         rootTask("SetDocTitle", { title: "You like this!" })
