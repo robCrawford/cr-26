@@ -1,8 +1,6 @@
 import { component, html, memo, VNode } from "cr-26";
 const { div, input, ul, li, button } = html;
 
-export type Props = Readonly<Record<string, never>>;
-
 export type State = Readonly<{
   filterText: string;
   selectedDate: string | null;
@@ -15,7 +13,7 @@ type ActionPayloads = Readonly<{
   ToggleInfo: null;
 }>;
 
-export type Component = { Props: Props; State: State; ActionPayloads: ActionPayloads };
+export type Component = { State: State; ActionPayloads: ActionPayloads };
 
 type DateItem = Readonly<{ id: string; label: string }>;
 

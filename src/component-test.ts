@@ -22,7 +22,7 @@ const { state, next } = actionTest("HandleSubmit", {}, {
 const { perform, success, failure } = taskTest("ValidateCount", { count: 0 });
 const { name, data } = success({ text: "Test" });
 */
-import { Config, Context } from "./cr-26.types";
+import { Component, Config, Context, GetConfig } from "./cr-26.types";
 
 // Options for testing actions with custom context
 // Note: Props are set during component initialization and cannot be overridden per-action
@@ -40,18 +40,12 @@ export type NextData = {
   data?: Record<string, unknown>;
 };
 
-// Type helper to extract component type structure
-export type ComponentType<TProps = unknown, TState = unknown, TRootState = unknown> = {
-  Props: TProps;
-  State: TState;
-  RootState?: TRootState;
-};
-
 export type ComponentTestApi<
+  TComponent extends Component,
   TState = Record<string, unknown>,
   TRootState = Record<string, unknown>
 > = {
-  config: Config;
+  config: Config<TComponent>;
   initialState: TState;
   actionTest: <TActionState = TState>(
     name: string,
@@ -77,21 +71,28 @@ export type TaskTestSpec<
   ) => NextData | NextData[] | undefined;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+type TestHandlers = Partial<{ [key: string]: Function }>;
+
 // Returns next action/task inputs as data
 const nextToData = (name: string, data?: Record<string, unknown>): NextData => ({ name, data });
 
-export const componentTest = <TComponent extends Partial<ComponentType>>(
-  component: { getConfig: Function },
+export const componentTest = <TComponent extends Component>(
+  component: { getConfig: GetConfig<TComponent> },
   props?: TComponent["Props"]
-): ComponentTestApi<TComponent["State"], TComponent["RootState"]> => {
+): ComponentTestApi<TComponent, TComponent["State"], TComponent["RootState"]> => {
   // Initialise component passing in `nextToData()` instead of `action()` and `task()` functions
   const config = component.getConfig({
+    // @ts-expect-error test api
     action: nextToData,
+    // @ts-expect-error test api
     task: nextToData,
+    // @ts-expect-error test api
     rootAction: nextToData,
+    // @ts-expect-error test api
     rootTask: nextToData
   });
-  const initialState = config.state && config.state(props);
+  const initialState = config.state?.(props);
 
   return {
     // Output from the callback passed into `component(...)`
@@ -105,8 +106,10 @@ export const componentTest = <TComponent extends Partial<ComponentType>>(
       data?: Record<string, unknown>,
       options?: ActionTestOptions<TState, TRootState>
     ): { state: TState; next?: NextData | NextData[] } {
+      const actions: TestHandlers = config.actions || {};
+
       // Returns any next operations as data
-      return config.actions[name](data, {
+      return actions[name]?.(data, {
         props: props ?? {},
         state: options?.state !== undefined ? options.state : (initialState ?? {}),
         rootState: options?.rootState ?? {},
@@ -116,8 +119,10 @@ export const componentTest = <TComponent extends Partial<ComponentType>>(
 
     // Get task spec for manually testing `success` and `failure` output
     taskTest(name: string, data?: Record<string, unknown>): TaskTestSpec {
+      const tasks: TestHandlers = config.tasks || {};
+
       // Returns task spec
-      return config.tasks[name](data);
+      return tasks[name]?.(data);
     }
   };
 };

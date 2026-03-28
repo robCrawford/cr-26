@@ -1177,7 +1177,7 @@ describe("Lifecycle and Data Flow", () => {
       expect(componentRegistry.has("child")).toBe(false);
 
       // Resolve task AFTER unmount
-      taskResolve!("loaded-data");
+      taskResolve?.("loaded-data");
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Success callback is executed (it's already queued in the Promise chain)

@@ -152,7 +152,7 @@ function executeAction(
   const { config, state: prevState, props, isRoot, id } = instance;
   const actions = config.actions;
 
-  if (!actions || !actions[actionName]) {
+  if (!actions?.[actionName]) {
     return;
   }
 
@@ -202,21 +202,19 @@ function performTask(
   const { config, state, props, id } = instance;
   const tasks = config.tasks;
 
-  if (!tasks || !tasks[taskName]) {
+  if (!tasks?.[taskName]) {
     throw Error(`Task ${taskName} not found in ${id}`);
   }
 
   const { perform, success, failure } = tasks[taskName](data);
   const runSuccess = (result: unknown): Next | undefined =>
-    success &&
-    success(result, {
+    success?.(result, {
       props: props ?? {},
       state: state ?? {},
       rootState: rootState ?? {}
     });
   const runFailure = (err: unknown): Next | undefined =>
-    failure &&
-    failure(err, {
+    failure?.(err, {
       props: props ?? {},
       state: state ?? {},
       rootState: rootState ?? {}
@@ -320,7 +318,7 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
 
 export function component<TComponent extends Component>(
   getConfig: GetConfig<TComponent>
-): { (idStr: string, props?: TComponent["Props"]): VNode; getConfig: Function } {
+): { (idStr: string, props?: TComponent["Props"]): VNode; getConfig: GetConfig<TComponent> } {
   // Pass in callback that returns component config
   // Returns render function that is called by parent e.g. `counter("counter-0", { start: 0 })`
   const renderFn = (idStr: string, props?: TComponent["Props"]): VNode => {
@@ -329,7 +327,7 @@ export function component<TComponent extends Component>(
     // Check if component exists in registry
     const existing = componentRegistry.get(id);
 
-    if (!id.length || (!noRender && existing && existing.inCurrentRender)) {
+    if (!id.length || (!noRender && existing?.inCurrentRender)) {
       throw Error(`Component${id ? ` "${id}" ` : " "}must have a unique id!`);
     }
 
@@ -374,11 +372,13 @@ export function renderComponent<TComponent extends Component>(
     action,
     task,
     // Assert root action/task types from the `Component` type
+    // eslint-disable-next-line no-restricted-syntax
     rootAction: rootAction as GetActionThunk<TComponent["RootActionPayloads"]>,
+    // eslint-disable-next-line no-restricted-syntax
     rootTask: rootTask as GetTaskThunk<TComponent["RootTaskPayloads"]>
   });
 
-  const state = config.state && config.state(props);
+  const state = config.state?.(props);
 
   // Create component instance
   const instance: ComponentInstance = {

@@ -7,7 +7,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules/**", "dist/**", "test/**"]
+    ignores: ["node_modules/**", "dist/**"]
   },
   js.configs.recommended,
   {
@@ -39,11 +39,13 @@ export default [
       "no-use-before-define": "off",
 
       // TypeScript-specific rules
-      "@typescript-eslint/no-unused-vars": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-use-before-define": "off",
-      "@typescript-eslint/no-unsafe-function-type": "off",
+      "@typescript-eslint/no-unsafe-function-type": "error",
       "@typescript-eslint/no-empty-object-type": "error",
+      "@typescript-eslint/prefer-optional-chain": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
       "@typescript-eslint/explicit-function-return-type": [
         "error",
         {
@@ -52,15 +54,29 @@ export default [
         }
       ],
 
+      // Type assertions
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "TSAsExpression",
+          message: "Type assertions are not allowed."
+        },
+        {
+          selector: "TSTypeAssertion",
+          message: "Type assertions are not allowed."
+        }
+      ],
+
       // Prettier integration
       "prettier/prettier": "error",
 
       // Disable style rules that conflict with Prettier
-      indent: "off"
+      indent: "off",
+      "no-console": "off"
     }
   },
   {
-    files: ["**/*.spec.ts", "**/*.test.ts"],
+    files: ["**/*.spec.ts"],
     languageOptions: {
       globals: {
         describe: "readonly",
@@ -75,7 +91,8 @@ export default [
       }
     },
     rules: {
-      "@typescript-eslint/explicit-function-return-type": "off"
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/no-unsafe-function-type": "off",
     }
   }
 ];

@@ -240,7 +240,7 @@ export const log = {
   }
 };
 
-function replacer(k: string, v: string | Function): string {
+function replacer(k: string, v: string): string {
   return typeof v === "function" ? "[fn]" : v;
 }
 
