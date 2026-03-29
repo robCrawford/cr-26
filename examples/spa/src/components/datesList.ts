@@ -1,4 +1,4 @@
-import { component, html, memo, VNode } from "cr-26";
+import { ActionThunk, component, html, memo, VNode } from "cr-26";
 const { div, input, ul, li, button } = html;
 
 export type State = Readonly<{
@@ -36,15 +36,26 @@ const filterDates = (filter: string): DateItem[] =>
     ? allDates.filter((d) => d.label.toLowerCase().includes(filter.toLowerCase().trim()))
     : allDates;
 
-// Memoized render function
-const renderList = (filter: string, selected: string | null, onClick: (e: Event) => void): VNode =>
-  ul(
-    ".dates-list",
-    { on: { click: onClick } },
-    filterDates(filter).map((d) =>
-      li({ key: d.id, attrs: { "data-id": d.id }, class: { selected: selected === d.id } }, d.label)
+type RenderListProps = {
+  filter: string;
+  selected: string | null;
+  onClick: ActionThunk;
+};
+
+// Memoized list view
+const listView = memo(
+  ({ filter, selected, onClick }: RenderListProps): VNode =>
+    ul(
+      ".dates-list",
+      { on: { click: onClick } },
+      filterDates(filter).map((d) =>
+        li(
+          { key: d.id, attrs: { "data-id": d.id }, class: { selected: selected === d.id } },
+          d.label
+        )
+      )
     )
-  );
+);
 
 export default component<Component>(({ action }) => ({
   state: (): State => ({ filterText: "", selectedDate: null, showInfo: true }),
@@ -86,11 +97,11 @@ export default component<Component>(({ action }) => ({
           : null
       ]),
       // Memoized: re-renders on filter/selection change, but NOT when toggling info
-      memo("ul.dates-list", "dates-list", renderList, [
-        state.filterText,
-        state.selectedDate,
-        action("SelectDate")
-      ])
+      listView({
+        filter: state.filterText,
+        selected: state.selectedDate,
+        onClick: action("SelectDate")
+      })
     ]);
   }
 }));

@@ -380,37 +380,48 @@ items.map((item) => li({ key: item.id }, item.name));
 
 ### Component Memoization
 
-Use `memo` (snabbdom's `thunk`) to skip re-rendering when args haven't changed.
+Use `memo` to skip re-rendering when props haven't changed. `memo` is a HOF — wrap a render function once at module level and call the result like a component.
 
 **CRITICAL**: Only `memo` render functions that **DO NOT access `rootState`**.
 
 See `examples/spa/src/components/datesList.ts` for the complete pattern:
 
 ```typescript
-import { memo } from "cr-26";
+import { ActionThunk, memo } from "cr-26";
 
-// Render function must be module-level (stable reference)
-const renderList = (filter: string, selected: string | null): VNode =>
+type RenderListProps = {
+  filter: string;
+  selected: string | null;
+  onClick: ActionThunk;
+};
+
+// Memoized list view — selector is derived from renderFn's first return value
+const listView = memo(({ filter, selected, onClick }: RenderListProps): VNode =>
   ul(
     ".list",
+    { on: { click: onClick } },
     filterItems(filter).map((item) =>
       li({ key: item.id, class: { selected: selected === item.id } }, item.label)
     )
-  );
+  )
+);
 
-// In view: memo(selector, key, renderFn, args)
-// - selector: element selector with tag name (e.g., "ul.list")
-// - key: stable string for vnode identity
-// - renderFn: module-level function (stable reference)
-// - args: array of primitives/stable refs - compared to decide if re-render needed
-memo("ul.list", "my-list", renderList, [state.filterText, state.selectedId]);
+// In view: call with props
+listView({ filter: state.filterText, selected: state.selectedId, onClick: action("Select") });
+```
+
+An optional `key` argument disambiguates sibling thunks with the same selector:
+
+```typescript
+const primaryList = memo(listRenderFn, "primary");
+const secondaryList = memo(listRenderFn, "secondary");
 ```
 
 **Key requirements for memo to work:**
 
-- Render function must be defined at module level (not inline)
-- Args must be primitives or stable references (not new arrays/objects each render)
-- The selector must include the tag name (e.g., `ul.list` not `.list`)
+- `memo(renderFn)` must be called at module level, not inside a component or view function
+- Props must be primitives or stable references (not new arrays/objects each render)
+- The renderFn must return a VNode with a tag name (e.g., `ul(".list", ...)` not `div(".list").children[0]`)
 
 ## Testing
 

@@ -10,7 +10,56 @@ import hyperscriptHelpers from "hyperscript-helpers";
 import type { VNode, Hooks } from "snabbdom";
 import { thunk } from "snabbdom";
 export type { VNode };
-export { thunk, thunk as memo };
+
+// Memoizes a render function by creating a thunk that only re-renders when its dependencies change
+// See `/examples/spa/src/components/datesList.ts` for a working example
+export function memo<TProps extends Record<string, unknown>>(
+  renderFn: (props: TProps) => VNode,
+  key?: string | number
+): (props: TProps) => VNode {
+  let propKeys: string[] | null = null;
+  let latestProps: TProps;
+  let cachedSelector: string | undefined;
+  let firstVNode: VNode | undefined;
+
+  // Returns the cached first VNode on the initial snabbdom `init` hook call to avoid a double-render,
+  // then delegates to renderFn for all subsequent calls
+  const stableRenderFn = (): VNode => {
+    if (firstVNode) {
+      const vnode = firstVNode;
+      firstVNode = undefined;
+      return vnode;
+    }
+    return renderFn(latestProps);
+  };
+
+  return (props: TProps): VNode => {
+    if (!propKeys) {
+      propKeys = Object.keys(props);
+    }
+    latestProps = props;
+    const dependencies = propKeys.map((k) => props[k]);
+
+    if (!cachedSelector) {
+      firstVNode = renderFn(props);
+      if (!firstVNode.sel) {
+        throw new Error("memo: renderFn must return a VNode with a selector (e.g. ul, div#id)");
+      }
+      cachedSelector = firstVNode.sel;
+    } else if (firstVNode) {
+      // Props updated again before snabbdom consumed firstVNode — discard the stale cached render
+      firstVNode = undefined;
+    }
+
+    // thunk(selector, key, renderFn, [stateArguments])
+    // https://github.com/snabbdom/snabbdom?tab=readme-ov-file#thunks
+    // `selector` e.g. `div#container.bar.baz` – A div element with the id container and the classes bar and baz
+    // `key` is optional, it should be supplied when the selector is not unique among the thunk's siblings
+    // `renderFn` is invoked only if the renderFn is changed or stateArguments change
+    // `stateArguments` is an array of dependencies that are used to determine if the thunk should be re-rendered
+    return thunk(cachedSelector, key, stableRenderFn, dependencies);
+  };
+}
 
 export const patch = init([classModule, attributesModule, propsModule, eventListenersModule]);
 
