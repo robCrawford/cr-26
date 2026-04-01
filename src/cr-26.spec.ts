@@ -40,14 +40,14 @@ describe("cr-26", () => {
       > = {};
 
       for (let i = 1; i < numTestActions; i++) {
-        actions["Increment" + i] = (_, { state }: { state: { count: number } }) => {
+        actions[`Increment${i}`] = (_, { state }: { state: { count: number } }) => {
           return {
             state: { ...state, count: state.count + 1 },
-            next: action("Increment" + (i + 1))
+            next: action(`Increment${i + 1}`)
           };
         };
       }
-      actions["Increment" + numTestActions] = (_, { state }: { state: { count: number } }) => {
+      actions[`Increment${numTestActions}`] = (_, { state }: { state: { count: number } }) => {
         return {
           state: { ...state, count: state.count + 1 }
         };
@@ -88,12 +88,12 @@ describe("cr-26", () => {
       const incrementRetActions: ActionThunk[] = [];
 
       for (let i = 1; i <= numTestActions; i++) {
-        actions["Increment" + i] = (_, { state }: { state: { count: number } }) => {
+        actions[`Increment${i}`] = (_, { state }: { state: { count: number } }) => {
           return {
             state: { ...state, count: state.count + 1 }
           };
         };
-        incrementRetActions.push(action("Increment" + i));
+        incrementRetActions.push(action(`Increment${i}`));
       }
       actions["Increment"] = (_, { state }: { state: { count: number } }) => ({
         state,
@@ -155,14 +155,14 @@ describe("cr-26", () => {
       > = {};
 
       for (let i = 1; i < numTestActions; i++) {
-        actions["Increment" + i] = (_, { state }: { state: { count: number } }) => {
+        actions[`Increment${i}`] = (_, { state }: { state: { count: number } }) => {
           return {
             state: { ...state, count: state.count + 1 },
-            next: action("Increment" + (i + 1))
+            next: action(`Increment${i + 1}`)
           };
         };
       }
-      actions["Increment" + numTestActions] = (_, { state }: { state: { count: number } }) => {
+      actions[`Increment${numTestActions}`] = (_, { state }: { state: { count: number } }) => {
         const newState = { ...state, count: state.count + 1 };
         setTimeout(() => {
           // After last action has been processed
@@ -178,7 +178,7 @@ describe("cr-26", () => {
 
       // Overwrite middle action with task
       const midIndex = numTestActions / 2;
-      actions["Increment" + midIndex] = (_, { state }: { state: { count: number } }) => {
+      actions[`Increment${midIndex}`] = (_, { state }: { state: { count: number } }) => {
         return {
           state: { ...state, count: state.count + 1 },
           next: task("TestAsync")
@@ -192,7 +192,7 @@ describe("cr-26", () => {
         tasks: {
           TestAsync: () => ({
             perform: () => new Promise<void>((resolve) => setTimeout(() => resolve(), 100)),
-            success: () => action("Increment" + (midIndex + 1))
+            success: () => action(`Increment${midIndex + 1}`)
           })
         },
         view
@@ -303,23 +303,23 @@ describe("cr-26", () => {
 
       // Array of single increment actions that return nothing
       for (let i = 1; i <= numTestActions; i++) {
-        actions["IncrementA1-" + i] = (_, ctx) => {
+        actions[`IncrementA1-${i}`] = (_, ctx) => {
           return {
             state: { ...ctx.state, count: ctx.state.count + 1 }
           };
         };
-        actionsArray1.push(action("IncrementA1-" + i));
+        actionsArray1.push(action(`IncrementA1-${i}`));
       }
       // Series of increment actions "IncrementS1-1" - "IncrementS1-19"
       for (let i = 1; i < numTestActions; i++) {
-        actions["IncrementS1-" + i] = (_, ctx) => {
+        actions[`IncrementS1-${i}`] = (_, ctx) => {
           return {
             state: { ...ctx.state, count: ctx.state.count + 1 },
-            next: action("IncrementS1-" + (i + 1))
+            next: action(`IncrementS1-${i + 1}`)
           };
         };
       }
-      actions["IncrementS1-" + numTestActions] = (_, ctx) => {
+      actions[`IncrementS1-${numTestActions}`] = (_, ctx) => {
         // "IncrementS1-20" returns `actionsArray1` array
         return {
           state: { ...ctx.state, count: ctx.state.count + 1 },
@@ -328,20 +328,20 @@ describe("cr-26", () => {
       };
       // Series of increment actions "IncrementS2-1" - "IncrementS2-10"
       for (let i = 1; i < numTestActions / 2; i++) {
-        actions["IncrementS2-" + i] = (_, ctx) => {
+        actions[`IncrementS2-${i}`] = (_, ctx) => {
           return {
             state: { ...ctx.state, count: ctx.state.count + 1 },
-            next: action("IncrementS2-" + (i + 1))
+            next: action(`IncrementS2-${i + 1}`)
           };
         };
       }
-      actions["IncrementS2-" + numTestActions / 2] = (_, ctx) => {
+      actions[`IncrementS2-${numTestActions / 2}`] = (_, ctx) => {
         return { state: { ...ctx.state, count: ctx.state.count + 1 } };
       };
 
       // "IncrementA2-Init" returns `actionsArray2` array
       for (let i = 1; i <= numTestActions; i++) {
-        actions["IncrementA2-" + i] = (_, ctx) => {
+        actions[`IncrementA2-${i}`] = (_, ctx) => {
           // Half return chain "IncrementS1-1" - "IncrementS1-20",
           // where "IncrementS1-20" returns `actionsArray1`
           if (i % 2) {
@@ -358,7 +358,7 @@ describe("cr-26", () => {
             };
           }
         };
-        actionsArray2.push(action("IncrementA2-" + i));
+        actionsArray2.push(action(`IncrementA2-${i}`));
       }
       actions["IncrementA2-Init"] = (_, ctx) => ({
         state: ctx.state,
@@ -391,12 +391,7 @@ describe("cr-26", () => {
 
   function logResult(numActions: number, patchCount: number) {
     console.log(
-      "Completed " +
-        numActions +
-        " actions with " +
-        patchCount +
-        " patch" +
-        (patchCount === 1 ? "" : "es")
+      `Completed ${numActions} actions with ${patchCount} patch${patchCount === 1 ? "" : "es"}`
     );
   }
 

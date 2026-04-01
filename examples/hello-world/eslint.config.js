@@ -33,6 +33,7 @@ export default [
       // Extend recommended rules
       ...tseslint.configs.recommended.rules,
       ...prettierConfig.rules,
+      "prefer-template": "error",
 
       // Disable base ESLint rules that are superseded by TypeScript rules
       "no-unused-vars": "off",

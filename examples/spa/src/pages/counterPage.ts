@@ -19,7 +19,7 @@ export default component<Component>(({ rootTask }) => ({
         themeMenu("#theme-menu"),
         div(".nav", [
           span("counter page | "),
-          a({ attrs: { href: "/list" + location.search, "data-navigo": true } }, "list page")
+          a({ attrs: { href: `/list${location.search}`, "data-navigo": true } }, "list page")
         ]),
         like("#counter-like", { page: "counterPage" })
       ]),

@@ -11,12 +11,25 @@ import type { VNode, Hooks } from "snabbdom";
 import { thunk } from "snabbdom";
 export type { VNode };
 
-// Memoizes a render function by creating a thunk that only re-renders when its dependencies change
-// See `/examples/spa/src/components/datesList.ts` for a working example
+let inViewExecution = false;
+
+export function setInViewExecution(value: boolean): void {
+  inViewExecution = value;
+}
+
+/*
+  Memoize a render function by creating a thunk that only re-renders when its dependencies change
+  Use when you have a self contained sub-tree with expensive rendering (e.g. mapping a large collection) that is independent of some frequently-changing parent state
+  See `/examples/spa/src/components/datesList.ts` for a working example
+*/
 export function memo<TProps extends Record<string, unknown>>(
   renderFn: (props: TProps) => VNode,
   key?: string | number
 ): (props: TProps) => VNode {
+  if (inViewExecution) {
+    throw new Error("memo() must be called at module level, not inside a view function");
+  }
+
   let propKeys: string[] | null = null;
   let latestProps: TProps;
   let cachedSelector: string | undefined;

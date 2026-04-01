@@ -43,19 +43,15 @@ type RenderListProps = {
 };
 
 // Memoized list view
-const listView = memo(
-  ({ filter, selected, onClick }: RenderListProps): VNode =>
-    ul(
-      ".dates-list",
-      { on: { click: onClick } },
-      filterDates(filter).map((d) =>
-        li(
-          { key: d.id, attrs: { "data-id": d.id }, class: { selected: selected === d.id } },
-          d.label
-        )
-      )
+const listView = memo(({ filter, selected, onClick }: RenderListProps): VNode => {
+  return ul(
+    ".dates-list",
+    { on: { click: onClick } },
+    filterDates(filter).map((d) =>
+      li({ key: d.id, attrs: { "data-id": d.id }, class: { selected: selected === d.id } }, d.label)
     )
-);
+  );
+});
 
 export default component<Component>(({ action }) => ({
   state: (): State => ({ filterText: "", selectedDate: null, showInfo: true }),

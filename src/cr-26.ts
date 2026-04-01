@@ -1,4 +1,4 @@
-import { patch, setHook, VNode } from "./vdom";
+import { patch, setHook, setInViewExecution, VNode } from "./vdom";
 export { html, VNode, memo, setHook } from "./vdom";
 import { log } from "./log";
 import {
@@ -287,11 +287,13 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
     instance.inCurrentRender = true;
 
     const prevVNode = instance.vnode;
+    setInViewExecution(true);
     instance.vnode = instance.config.view(instance.id, {
       props: instance.props ?? {},
       state: instance.state ?? {},
       rootState: rootState ?? {}
     });
+    setInViewExecution(false);
     log.render(instance.id, instance.props);
     log.setStateGlobal(instance.id, instance.state);
 
@@ -416,11 +418,13 @@ export function renderComponent<TComponent extends Component>(
   }
 
   log.render(id, props);
+  setInViewExecution(true);
   instance.vnode = config.view(id, {
     props: props ?? {},
     state: instance.state ?? {},
     rootState: rootState ?? {}
   });
+  setInViewExecution(false);
   instance.prevProps = props;
 
   setCleanup(instance);

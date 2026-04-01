@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { html, memo, patch, setHook, VNode } from "./vdom";
+import { html, memo, patch, setHook, setInViewExecution, VNode } from "./vdom";
 
 const { ul } = html;
 
@@ -33,6 +33,21 @@ describe("memo", () => {
     it("vnode.key is undefined when not provided", () => {
       const memoized = memo((): VNode => ul(".list"));
       expect(memoized({}).key).toBeUndefined();
+    });
+  });
+
+  describe("module-level guard", () => {
+    afterEach(() => setInViewExecution(false));
+
+    it("throws when called inside a view execution", () => {
+      setInViewExecution(true);
+      expect(() => memo((): VNode => ul(".list"))).toThrow(
+        "memo() must be called at module level, not inside a view function"
+      );
+    });
+
+    it("does not throw when called outside a view execution", () => {
+      expect(() => memo((): VNode => ul(".list"))).not.toThrow();
     });
   });
 
@@ -75,7 +90,7 @@ describe("memo", () => {
     it("ignores keys introduced after the first call", () => {
       const memoized = memo((): VNode => ul(".list"));
       const vnode1 = memoized({ filter: "a" });
-      const vnode2 = memoized({ filter: "b", extra: "ignored" } as { filter: string });
+      const vnode2 = memoized({ filter: "b", extra: "ignored" });
       expect(vnode1.data?.args).toEqual(["a"]);
       expect(vnode2.data?.args).toEqual(["b"]);
     });
