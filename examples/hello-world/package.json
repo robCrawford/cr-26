@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "parcel --no-cache ./index.html",
     "ts:check": "tsc --noEmit",
-    "ts:clean": "rm -rf ./dist",
+    "ts:clean": "rm -rf ./dist ./.parcel-cache",
     "ts:build": "yarn ts:clean && tsc --noEmit && cross-env NODE_ENV=production parcel build ./index.html --public-url ./",
     "test": "vitest run",
     "test:watch": "vitest",

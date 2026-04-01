@@ -4,3 +4,4 @@ node_modules
 .parcel-cache
 .vscode
 dist
+dist-serve
