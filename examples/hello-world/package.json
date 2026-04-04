@@ -15,7 +15,7 @@
   "author": "Rob Crawford",
   "repository": {
     "type": "git",
-    "url": "https://github.com/robCrawford/cr-26"
+    "url": "git+https://github.com/robCrawford/cr-26.git"
   },
   "license": "MIT",
   "devDependencies": {

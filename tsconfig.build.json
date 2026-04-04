@@ -1,5 +1,8 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "stripInternal": true
+  },
   "exclude": [
     ".git",
     "node_modules",

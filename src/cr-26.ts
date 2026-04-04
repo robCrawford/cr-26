@@ -32,6 +32,7 @@ export {
   ThunkType
 } from "./cr-26.types";
 
+/** @internal */
 export const componentRegistry = new Map<string, ComponentInstance>();
 
 const actionThunkCache = new Map<string, ActionThunk>();
@@ -67,7 +68,9 @@ function resetAppState(): void {
 
 // Test utilities
 let internalKey = {};
+/** @internal */
 export const _setTestKey = <T extends object>(k: T): T => (internalKey = k);
+/** @internal */
 export const _resetForTest = resetAppState;
 
 // Helper to create stable cache keys

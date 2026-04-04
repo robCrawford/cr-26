@@ -23,6 +23,7 @@ const { perform, success, failure } = taskTest("ValidateCount", { count: 0 });
 const { name, data } = success({ text: "Test" });
 */
 import { Component, Config, Context, GetConfig } from "./cr-26.types";
+export { componentRegistry, _setTestKey, _resetForTest } from "./cr-26";
 
 // Options for testing actions with custom context
 // Note: Props are set during component initialization and cannot be overridden per-action
