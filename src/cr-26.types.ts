@@ -6,7 +6,7 @@ export enum ThunkType {
 }
 
 export type ActionThunk = {
-  (data?: Record<string, unknown>): void;
+  (data?: Record<string, unknown> | NormalizedEvent): void;
   type: ThunkType.Action;
 };
 
@@ -117,11 +117,10 @@ export type ValueOf<T> = T[keyof T];
 
 export type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T;
 
-type TargetInputProps = EventTarget &
-  Partial<Pick<HTMLInputElement, "value" | "checked" | "files" | "name" | "id">>;
+type TargetInputProps = EventTarget & Partial<HTMLInputElement> & Partial<Node>;
 
 // Use in place of `Event` to access input target props without narrowing
 export type NormalizedEvent = Event & {
   target: TargetInputProps | null;
   currentTarget: TargetInputProps | null;
-};
+} & Partial<TouchEvent>;

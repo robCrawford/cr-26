@@ -246,9 +246,7 @@ describe("cr-26 components", () => {
   });
 
   it("should allow action calls with a DOM event input", () => {
-    expect(() =>
-      parentAction("Increment", { step: 1 })({ eventPhase: 1, target: null, type: "test" })
-    ).not.toThrow();
+    expect(() => parentAction("Increment", { step: 1 })(new Event("click"))).not.toThrow();
   });
 
   it("should throw when a task is called manually", () => {
@@ -258,9 +256,7 @@ describe("cr-26 components", () => {
   });
 
   it("should allow task calls with a DOM event input", () => {
-    const mockEvent = { eventPhase: 1, target: null, type: "test" };
-
-    expect(() => parentTask("Validate", { count: 1 })(mockEvent)).not.toThrow();
+    expect(() => parentTask("Validate", { count: 1 })(new Event("click"))).not.toThrow();
   });
 
   it("should remove references when an existing component is not rendered", () => {

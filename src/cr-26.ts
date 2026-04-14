@@ -25,6 +25,7 @@ export {
   GetConfig,
   GetTaskThunk,
   Next,
+  NormalizedEvent,
   RunAction,
   Task,
   TaskHandler,
@@ -495,8 +496,8 @@ export function mount<TActions, TProps = Record<string, never>>({
   }
 }
 
-function isDomEvent(e?: Record<string, unknown> | Event): e is NormalizedEvent {
-  return Boolean(e && "eventPhase" in e && "target" in e && "type" in e);
+function isDomEvent(event?: Record<string, unknown> | Event): event is NormalizedEvent {
+  return event instanceof Event;
 }
 
 function isThunk(next: Next): next is ActionThunk | TaskThunk {

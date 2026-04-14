@@ -135,7 +135,7 @@ actions: {
     state: { ...state, value }
   }),
 
-  // No payload - use `_` for unused params
+  // No payload - use `_` for required positional params that are unused
   Reset: (_, { state }): { state: State } => ({
     state: { ...state, count: 0 }
   }),
@@ -340,6 +340,14 @@ notification(`#${id}-feedback`, {
   text: state.feedback,
   onDismiss: action("SetFeedback", { text: "" })
 });
+```
+
+Note that the `on:` property is typed as `any` via `hyperscript-helpers`, so passing `ActionThunk` values raises no TypeScript errors (despite the structural mismatch with snabbdom's internal `Listener<T>` type).
+
+ActionThunks received as props can be placed in on: handlers directly — they behave identically to locally created thunks:
+
+```typescript
+div({ on: { dragstart: props.onDragStart } })
 ```
 
 ## View Rendering

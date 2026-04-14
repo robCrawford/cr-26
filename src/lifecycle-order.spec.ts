@@ -682,7 +682,7 @@ describe("Lifecycle and Data Flow", () => {
       const button = document.querySelector("#test-button");
       expect(button).toBeTruthy();
 
-      const clickEvent = new dom.window.Event("click");
+      const clickEvent = new Event("click");
       button?.dispatchEvent(clickEvent);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -840,7 +840,7 @@ describe("Lifecycle and Data Flow", () => {
 
       // Simulate DOM event first to get to step6
       const button = document.querySelector("#test-button");
-      const clickEvent = new dom.window.Event("click");
+      const clickEvent = new Event("click");
       button?.dispatchEvent(clickEvent);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -870,7 +870,7 @@ describe("Lifecycle and Data Flow", () => {
 
       // Trigger DOM event and then increment
       const button = document.querySelector("#test-button");
-      const clickEvent = new dom.window.Event("click");
+      const clickEvent = new Event("click");
       button?.dispatchEvent(clickEvent);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -1078,7 +1078,7 @@ describe("Lifecycle and Data Flow", () => {
       // Simulate DOM click
       const button = document.querySelector("#test-button");
       expect(button).toBeTruthy();
-      const clickEvent = new dom.window.Event("click");
+      const clickEvent = new Event("click");
       button?.dispatchEvent(clickEvent);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -1168,7 +1168,7 @@ describe("Lifecycle and Data Flow", () => {
       // Unmount child while task is in-flight by clicking toggle button
       const toggleButton = document.querySelector("#toggle-button");
       expect(toggleButton).toBeTruthy();
-      const clickEvent = new dom.window.Event("click");
+      const clickEvent = new Event("click");
       toggleButton?.dispatchEvent(clickEvent);
 
       await new Promise((resolve) => setTimeout(resolve, 1));

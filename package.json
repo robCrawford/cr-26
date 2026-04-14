@@ -1,6 +1,6 @@
 {
   "name": "cr-26",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript components made with pure functions",
   "type": "module",
   "main": "dist/cr-26.js",
@@ -68,6 +68,7 @@
     "snabbdom": "^3.6.3"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "AGENTS.md"
   ]
 }

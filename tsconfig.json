@@ -12,6 +12,7 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "removeComments": true,
+    "rootDir": "./src",
     "outDir": "./dist/",
     "types": ["vitest/globals", "node"],
     "skipLibCheck": true
