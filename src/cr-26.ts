@@ -322,6 +322,13 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
   return instance.vnode;
 }
 
+/**
+ * Defines a component. Pass a callback that receives `action`, `task`, `rootAction`, and
+ * `rootTask` factory functions and returns a {@link Config}.
+ *
+ * Returns a render function `(id, props?) => VNode` that is called by the parent to mount the
+ * component into the virtual DOM.
+ */
 export function component<TComponent extends Component>(
   getConfig: GetConfig<TComponent>
 ): { (idStr: string, props?: TComponent["Props"]): VNode; getConfig: GetConfig<TComponent> } {
@@ -462,6 +469,16 @@ function setCleanup(instance: ComponentInstance): void {
   });
 }
 
+/**
+ * Mounts the root component and boots the application.
+ *
+ * @param app - The root component render function returned by `component(...)`.
+ * @param props - Initial props for the root component.
+ * @param init - Optional callback invoked after the app has mounted. Receives `runRootAction`,
+ *   a {@link RunAction} function for wiring external events (e.g. routing, browser APIs) to root
+ *   actions. **Not** the same as `init` on {@link Config}, which dispatches thunks when a single
+ *   component first mounts.
+ */
 export function mount<TActions, TProps = Record<string, never>>({
   app,
   props,
@@ -532,14 +549,18 @@ const deepFreeze =
     : <T>(o?: T): T | undefined => o;
 
 // Pub/sub
+
+/** Subscribes to a framework or custom application event. Use `"patch"` to react after every VDOM patch. */
 export function subscribe(type: string, listener: EventListener): void {
   document.addEventListener(type, listener);
 }
 
+/** Removes a previously registered event listener added with {@link subscribe}. */
 export function unsubscribe(type: string, listener: EventListener): void {
   document.removeEventListener(type, listener);
 }
 
+/** Emits a custom application event. Prefer props and actions for component communication. */
 export function publish(type: string, detail?: Record<string, unknown>): void {
   document.dispatchEvent(new CustomEvent(type, detail ? { detail } : undefined));
 }

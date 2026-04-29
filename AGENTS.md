@@ -245,6 +245,45 @@ actions: {
 }
 ```
 
+## Special Cases
+
+### Manual thunk invocation exceptions
+
+> ⚠️ **This breaks the normal convention** — thunks should not be called directly under normal circumstances. The only genuine use case is when you need to call synchronous methods on the native event (e.g. `preventDefault()`, `stopPropagation()`) before the action handler runs, alongside data that isn't available at the point the thunk is created.
+
+Most cases that appear to need this can be remodelled by extracting the relevant event data in the action handler and passing it to a task:
+
+```typescript
+// ✅ Preferred — no wrapper needed
+div({ on: { pointerdown: action("PointerDown", { id }) } })
+
+actions: {
+  PointerDown: ({ id }, { state, event }): { state: State; next: Next } => ({
+    state: { ...state, activeId: id },
+    next: task("AttachDragClone", {
+      x: event?.touches?.[0]?.clientX ?? 0,
+      y: event?.touches?.[0]?.clientY ?? 0
+    })
+  })
+}
+```
+
+If you genuinely need to call `preventDefault()` or `stopPropagation()` synchronously before the action handler, use a wrapper and relay the event manually:
+
+```typescript
+const onPointerDown =
+  (id: string) =>
+  (e: NormalizedEvent): void => {
+    e.preventDefault();                    // must run synchronously before handler
+    action("PointerDown", { id })(e);      // relay event so ctx.event is populated
+  };
+
+// In view:
+div(`#${id}`, { on: { pointerdown: onPointerDown(state.activeId) } })
+```
+
+Outside of this specific scenario, always pass thunks as direct event handler values.
+
 ## Additional Type Patterns
 
 ### Context Object
@@ -342,7 +381,7 @@ notification(`#${id}-feedback`, {
 });
 ```
 
-Note that the `on:` property is typed as `any` via `hyperscript-helpers`, so passing `ActionThunk` values raises no TypeScript errors (despite the structural mismatch with snabbdom's internal `Listener<T>` type).
+> ⚠️ **Do not tighten the type of `on:`** — `hyperscript-helpers` types it as `any`, which is what allows `ActionThunk` values to work in event handlers. Snabbdom's `Listener<T>` (`(this: VNode, ev: T, vnode: VNode) => void`) is incompatible with `ActionThunk`, so narrowing `on:` would break all `action(...)` and `task(...)` usages.
 
 ActionThunks received as props can be placed in on: handlers directly — they behave identically to locally created thunks:
 

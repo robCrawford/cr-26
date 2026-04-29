@@ -23,7 +23,7 @@ TypeScript components made with pure functions
 
 `component(...)` takes a function which receives `action` and `task` functions.
 
-These are called to create thunks for the framework to execute (they cannot be invoked directly):
+These are called to create thunks for the framework to execute (they are not called directly):
 
 ```JavaScript
 export default component(
@@ -53,6 +53,19 @@ view(id, { props, state, rootState }) {
 ```
 
 Action handlers and the `success` and `failure` callbacks of tasks also receive a similar context input.
+
+To access `rootState` in a component, add `RootState` to its `Component` type:
+
+```typescript
+type Component = {
+  State: Readonly<{ count: number }>;
+  RootState: RootState; // Sets types for rootState in callbacks
+};
+```
+
+### Root type naming convention
+
+By convention, types exported from the root component are prefixed with `Root` — e.g. `RootState`, `RootActionPayloads`, `RootTaskPayloads`. This prefix makes them easy to identify at a glance anywhere they are imported and used in child components.
 
 ### Hello World!
 
@@ -316,6 +329,140 @@ Like Redux, cr-26 emphasizes **pure functions for state updates**, but the patte
     }),
   }
 ```
+
+---
+
+## Component Config Callbacks
+
+All callbacks passed into `component(...)` via the config object, with their inputs and return types.
+
+---
+
+### `state`
+
+Initialises the component's local state from props.
+
+```typescript
+state: (props: Props) => State
+```
+
+| Parameter | Type    | Description                       |
+| --------- | ------- | --------------------------------- |
+| `props`   | `Props` | The props passed to the component |
+
+Returns: initial `State` object.
+
+---
+
+### `init`
+
+An action or task thunk (or array of thunks) to run when the component first mounts. Created with `action(...)` or `task(...)`.
+
+```typescript
+init: action("ActionName", payload)
+init: task("TaskName", payload)
+init: [action("A"), task("B")]
+```
+
+---
+
+### Action handlers
+
+Each key in `actions` is a pure function that returns new state and an optional next thunk chain.
+
+```typescript
+actions: {
+  ActionName: (data: Payload, ctx: Context) => ({ state: State; next?: Next })
+}
+```
+
+| Parameter   | Type      | Description                                      |
+| ----------- | --------- | ------------------------------------------------ |
+| `data`      | `Payload` | The payload passed to `action("ActionName", ...)` |
+| `ctx.props` | `Props`   | Current component props                          |
+| `ctx.state` | `State`   | Current component state                          |
+| `ctx.rootState` | `RootState` | Current root state                         |
+| `ctx.event` | `NormalizedEvent \| undefined` | DOM event — only present when the action was triggered by a DOM event handler |
+
+Returns: `{ state: State }` or `{ state: State; next: Next }`.
+`Next` is an `ActionThunk`, `TaskThunk`, or an array of either.
+
+---
+
+### Task handlers
+
+Each key in `tasks` is a function that receives the task payload and returns a `Task` object with callbacks for the effect lifecycle.
+
+```typescript
+tasks: {
+  TaskName: (data: Payload) => Task<TResult, Props, State>
+}
+```
+
+| Parameter | Type      | Description                                     |
+| --------- | --------- | ----------------------------------------------- |
+| `data`    | `Payload` | The payload passed to `task("TaskName", ...)` |
+
+Returns a `Task` object — see below.
+
+#### `perform`
+
+Runs the side effect. The only place for I/O, async operations, browser APIs, etc.
+
+```typescript
+perform: () => Promise<TResult | void> | TResult | void
+```
+
+No inputs. Returns a result (sync or async) that is passed to `success`, or throws/rejects to trigger `failure`.
+
+#### `success`
+
+Called after `perform` resolves. Returns the next thunk(s) to dispatch.
+
+```typescript
+success?: (result: TResult, ctx: Context) => Next
+```
+
+| Parameter       | Type        | Description                       |
+| --------------- | ----------- | --------------------------------- |
+| `result`        | `TResult`   | The resolved value from `perform` |
+| `ctx.props`     | `Props`     | Current component props           |
+| `ctx.state`     | `State`     | Current component state           |
+| `ctx.rootState` | `RootState` | Current root state                |
+
+#### `failure`
+
+Called when `perform` throws or rejects. Error properties are automatically made deeply optional for runtime safety.
+
+```typescript
+failure?: (error: DeepPartial<TError>, ctx: Context) => Next
+```
+
+| Parameter       | Type                   | Description                          |
+| --------------- | ---------------------- | ------------------------------------ |
+| `error`         | `DeepPartial<TError>`  | The caught error from `perform`      |
+| `ctx.props`     | `Props`                | Current component props              |
+| `ctx.state`     | `State`                | Current component state              |
+| `ctx.rootState` | `RootState`            | Current root state                   |
+
+---
+
+### `view`
+
+Renders the component to a virtual DOM node.
+
+```typescript
+view: (id: string, ctx: Context) => VNode
+```
+
+| Parameter       | Type        | Description                        |
+| --------------- | ----------- | ---------------------------------- |
+| `id`            | `string`    | Unique component instance ID — use as a DOM selector prefix to avoid clashes |
+| `ctx.props`     | `Props`     | Current component props            |
+| `ctx.state`     | `State`     | Current component state            |
+| `ctx.rootState` | `RootState` | Current root state                 |
+
+Returns: a `VNode` (Snabbdom virtual DOM node).
 
 ---
 

@@ -1,0 +1,1 @@
+Read README.md and AGENTS.md before making any changes to code that uses this library
