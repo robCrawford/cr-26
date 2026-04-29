@@ -38,21 +38,21 @@ type RootState = Readonly<{
 }>;
 
 type RootActions = Readonly<{
-  Step1_InitAction: null;
-  Step2_HandleSyncSuccess: null;
+  Step1_InitAction: undefined;
+  Step2_HandleSyncSuccess: undefined;
   Step3_HandleAsyncSuccess: { data: string };
   Step4_HandleFailure: { error: string };
-  Step5a_ArrayItem: null;
-  Step5b_ArrayItem: null;
-  Step6_HandleDomEvent: null;
-  IncrementCounter: null;
-  Step7_Complete: null;
+  Step5a_ArrayItem: undefined;
+  Step5b_ArrayItem: undefined;
+  Step6_HandleDomEvent: undefined;
+  IncrementCounter: undefined;
+  Step7_Complete: undefined;
 }>;
 
 type RootTasks = Readonly<{
-  SyncTask: null;
-  AsyncTask: null;
-  FailingTask: null;
+  SyncTask: undefined;
+  AsyncTask: undefined;
+  FailingTask: undefined;
 }>;
 
 type RootComponent = {
@@ -65,7 +65,7 @@ type RootComponent = {
 type ChildProps = Record<string, never>;
 
 type ChildActions = Readonly<{
-  TriggerIncrement: null;
+  TriggerIncrement: undefined;
 }>;
 
 type ChildComponent = {
@@ -119,7 +119,7 @@ const createRootComponent = () => {
     }),
 
     // Init action
-    init: action("Step1_InitAction", null),
+    init: action("Step1_InitAction"),
 
     // Action handlers
     actions: {
@@ -140,7 +140,7 @@ const createRootComponent = () => {
             executionOrder: [...currentState.executionOrder, "step1"],
             step1Done: true
           },
-          next: task("SyncTask", null)
+          next: task("SyncTask")
         };
       },
 
@@ -160,7 +160,7 @@ const createRootComponent = () => {
             executionOrder: [...currentState.executionOrder, "step2"],
             step2Done: true
           },
-          next: task("AsyncTask", null)
+          next: task("AsyncTask")
         };
       },
 
@@ -181,7 +181,7 @@ const createRootComponent = () => {
             executionOrder: [...currentState.executionOrder, "step3"],
             step3Done: true
           },
-          next: task("FailingTask", null)
+          next: task("FailingTask")
         };
       },
 
@@ -202,7 +202,7 @@ const createRootComponent = () => {
             executionOrder: [...currentState.executionOrder, "step4"],
             step4Done: true
           },
-          next: [action("Step5a_ArrayItem", null), action("Step5b_ArrayItem", null)]
+          next: [action("Step5a_ArrayItem"), action("Step5b_ArrayItem")]
         };
       },
 
@@ -281,7 +281,7 @@ const createRootComponent = () => {
             counter: currentState.counter + 1,
             executionOrder: [...currentState.executionOrder, "increment"]
           },
-          next: action("Step7_Complete", null)
+          next: action("Step7_Complete")
         };
       },
 
@@ -318,7 +318,7 @@ const createRootComponent = () => {
             hasRootState: ctx.rootState !== undefined,
             hasEvent: !!ctx?.event
           };
-          return action("Step2_HandleSyncSuccess", null);
+          return action("Step2_HandleSyncSuccess");
         }
       }),
 
@@ -362,7 +362,7 @@ const createRootComponent = () => {
         button(
           {
             attrs: { id: "test-button" },
-            on: { click: action("Step6_HandleDomEvent", null) }
+            on: { click: action("Step6_HandleDomEvent") }
           },
           "Click me"
         ),
@@ -388,7 +388,7 @@ const createChildComponent = () => {
 
           return {
             state: {},
-            next: rootAction?.("IncrementCounter", null)
+            next: rootAction?.("IncrementCounter")
           };
         }
       },
@@ -399,7 +399,7 @@ const createChildComponent = () => {
           button(
             {
               attrs: { id: "child-button" },
-              on: { click: action("TriggerIncrement", null) }
+              on: { click: action("TriggerIncrement") }
             },
             "Increment from child"
           )
@@ -561,7 +561,7 @@ describe("Lifecycle and Data Flow", () => {
 
       let stateInAction: TestState | null = null;
       let mutationAttempted = false;
-      type TestActions = { TestMutation: null };
+      type TestActions = { TestMutation: undefined };
       type TestComponent = {
         Props: TestProps;
         State: TestState;
@@ -573,7 +573,7 @@ describe("Lifecycle and Data Flow", () => {
           value: props?.value ?? "default",
           modified: false
         }),
-        init: action("TestMutation", null),
+        init: action("TestMutation"),
         actions: {
           TestMutation: (_, context) => {
             if (!context.state) throw new Error("Context state is required");
@@ -1114,7 +1114,7 @@ describe("Lifecycle and Data Flow", () => {
         Props: Record<string, never>;
         State: { data: string };
         ActionPayloads: { SetData: { data: string } };
-        TaskPayloads: { FetchData: null };
+        TaskPayloads: { FetchData: undefined };
       }>(({ action, task }) => ({
         state: () => ({ data: "" }),
         init: task("FetchData"),
@@ -1142,7 +1142,7 @@ describe("Lifecycle and Data Flow", () => {
       const parentWithToggle = component<{
         Props: Record<string, never>;
         State: { showChild: boolean };
-        ActionPayloads: { Toggle: null };
+        ActionPayloads: { Toggle: undefined };
       }>(({ action: a }) => {
         return {
           state: () => ({ showChild: true }),

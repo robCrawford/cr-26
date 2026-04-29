@@ -15,7 +15,7 @@ export type State = Readonly<{
 type ActionPayloads = Readonly<{
   Increment: { step: number };
   Decrement: { step: number };
-  Validate: null;
+  Validate: undefined;
   SetFeedback: { text: string };
 }>;
 

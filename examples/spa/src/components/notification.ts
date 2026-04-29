@@ -11,7 +11,7 @@ export type State = Readonly<{
 }>;
 
 type ActionPayloads = Readonly<{
-  Dismiss: null;
+  Dismiss: undefined;
 }>;
 
 export type Component = {

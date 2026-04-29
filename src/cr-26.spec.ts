@@ -398,7 +398,7 @@ describe("cr-26", () => {
   describe("event context", () => {
     it("should pass DOM event to action handler context", () => {
       let capturedEvent: Event | undefined;
-      let action: GetActionThunk<{ Click: null }>;
+      let action: GetActionThunk<{ Click: undefined }>;
 
       renderComponent(getId(), ({ action: a }) => {
         action = a;

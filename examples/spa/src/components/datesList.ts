@@ -8,9 +8,9 @@ export type State = Readonly<{
 }>;
 
 type ActionPayloads = Readonly<{
-  SetFilter: null;
-  SelectDate: null;
-  ToggleInfo: null;
+  SetFilter: undefined;
+  SelectDate: undefined;
+  ToggleInfo: undefined;
 }>;
 
 export type Component = { State: State; ActionPayloads: ActionPayloads };

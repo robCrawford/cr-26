@@ -31,7 +31,7 @@ type Component = {
   State: Readonly<{ count: number; feedback: string }>;
   ActionPayloads: Readonly<{
     Increment: { step: number };
-    Reset: null;
+    Reset: undefined;
   }>;
   TaskPayloads: Readonly<{
     ValidateCount: { count: number };
@@ -85,7 +85,7 @@ type Component = {
 // Component with no props
 type Component = {
   State: Readonly<{ count: number }>;
-  ActionPayloads: Readonly<{ Increment: null }>;
+  ActionPayloads: Readonly<{ Increment: undefined }>;
 };
 ```
 
@@ -103,7 +103,7 @@ type Component = {
 const testComponent = component<{
   State: { count: number };
   ActionPayloads: {
-    Increment: null;
+    Increment: undefined;
   };
 }>(({ action }) => ({
   state: () => ({ count: 0 }),
@@ -146,6 +146,17 @@ actions: {
     state: theme === state.theme ? state : { ...state, theme }
   })
 }
+```
+
+For actions with no payload, use `undefined` as the type — the second argument to `action(...)` is then omitted at the call site:
+
+```typescript
+type ActionPayloads = Readonly<{
+  ShowMessage: { text: string };
+  Dismiss: undefined; // no payload
+}>;
+
+action("Dismiss") // second arg omitted
 ```
 
 See `examples/spa/src/components/counter.ts` for complete action patterns.

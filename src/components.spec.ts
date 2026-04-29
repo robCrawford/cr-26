@@ -51,7 +51,7 @@ describe("cr-26 components", () => {
       State: { count: number };
       ActionPayloads: {
         Increment: { step: number };
-        NoOp: null;
+        NoOp: undefined;
         Mutate: { k: string };
       };
     }>(({ action: a }) => {
@@ -120,7 +120,7 @@ describe("cr-26 components", () => {
       State: { theme: string };
       ActionPayloads: {
         SetTheme: { theme: string };
-        NoOp: null;
+        NoOp: undefined;
       };
     }>(({ action: a }) => {
       rootAction = a;
@@ -298,7 +298,7 @@ describe("cr-26 components", () => {
 
     const statelessComponent = component<{
       ActionPayloads: {
-        DoSomething: null;
+        DoSomething: undefined;
       };
     }>(({ action }) => ({
       actions: {
@@ -313,7 +313,7 @@ describe("cr-26 components", () => {
     const appComponent = component<{
       State: { count: number };
       ActionPayloads: {
-        Increment: null;
+        Increment: undefined;
       };
     }>(() => ({
       state: () => ({ count: 0 }),

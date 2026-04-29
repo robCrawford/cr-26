@@ -7,7 +7,7 @@ export type Props = Readonly<{
 }>;
 
 type ActionPayloads = Readonly<{
-  Like: null;
+  Like: undefined;
 }>;
 
 export type Component = {
