@@ -20,20 +20,21 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^10.0.1",
     "@parcel/transformer-typescript-tsc": "^2.13.3",
+    "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
-    "@vitest/ui": "^2.1.8",
+    "@vitest/ui": "^4.1.5",
     "cross-env": "^10.1.0",
-    "eslint": "^9.39.1",
+    "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
-    "jsdom": "^25.0.1",
+    "jsdom": "^29.1.1",
     "parcel": "^2.13.3",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.3",
-    "vitest": "^2.1.8"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   },
   "dependencies": {
     "navigo": "^8.11.1"

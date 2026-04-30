@@ -8,9 +8,8 @@
     "declaration": true,
     "esModuleInterop": true,
     "noEmit": true,
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "node"],
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
       "cr-26": ["../../src/cr-26.ts"],
       "cr-26/test": ["../../src/component-test.ts"]

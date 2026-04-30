@@ -21,9 +21,9 @@
     "ts:clean": "rm -rf ./dist",
     "ts:build": "yarn ts:clean && tsc -p tsconfig.build.json && esbuild dist/*.js --minify --platform=neutral --outdir=dist --allow-overwrite",
     "test": "vitest run",
+    "test:project": "yarn ts:check && yarn lint && yarn test && cd examples/spa && yarn ts:check && yarn lint && yarn test &&cd ../hello-world && yarn ts:check && yarn lint && yarn test && cd ../../",
     "lint": "eslint 'src/**/*.ts'",
-    "prepublishOnly": "yarn ts:build",
-    "check:project": "yarn ts:check && yarn lint && yarn test && cd examples/spa && yarn ts:check && yarn lint && yarn test &&cd ../hello-world && yarn ts:check && yarn lint && yarn test && cd ../../"
+    "prepublishOnly": "yarn ts:build"
   },
   "author": "Robert Crawford",
   "repository": {
@@ -53,14 +53,14 @@
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "@vitest/ui": "^4.1.0",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.28.0",
     "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^17.4.0",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.1.1",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.0"
   },
   "dependencies": {
@@ -69,6 +69,7 @@
   },
   "files": [
     "dist/",
-    "AGENTS.md"
+    "AGENTS.md",
+    "llms.txt"
   ]
 }
