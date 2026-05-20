@@ -46,7 +46,7 @@ describe("RootState with Memoization", () => {
             return { state: { ...state, count: state.count + step } };
           }
         },
-        view: (id, ctx) => div(`#${id}`, `Count: ${ctx.state?.count ?? 0}`)
+        view: (ctx) => div(`#${ctx.id}`, `Count: ${ctx.state?.count ?? 0}`)
       };
     });
 
@@ -124,7 +124,7 @@ describe("RootState with Memoization", () => {
             }
           })
         },
-        view: (id, ctx) => div(`#${id}`, `Count: ${ctx.state?.count ?? 0}`)
+        view: (ctx) => div(`#${ctx.id}`, `Count: ${ctx.state?.count ?? 0}`)
       };
     });
 

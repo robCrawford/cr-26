@@ -132,7 +132,9 @@ const createRootComponent = () => {
           hasEvent: !!context?.event
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -152,7 +154,9 @@ const createRootComponent = () => {
           hasEvent: !!context?.event
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -173,7 +177,9 @@ const createRootComponent = () => {
           receivedData: payload?.data
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -194,7 +200,9 @@ const createRootComponent = () => {
           receivedError: payload?.error
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -214,7 +222,9 @@ const createRootComponent = () => {
           hasEvent: !!context?.event
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -232,7 +242,9 @@ const createRootComponent = () => {
           hasEvent: !!context?.event
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -253,7 +265,9 @@ const createRootComponent = () => {
           eventType: context?.event?.type
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -273,7 +287,9 @@ const createRootComponent = () => {
           hasEvent: !!context?.event
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -293,7 +309,9 @@ const createRootComponent = () => {
           hasEvent: !!context?.event
         };
 
-        if (!context.state) throw new Error("Context state is required");
+        if (!context.state) {
+          throw new Error("Context state is required");
+        }
         const currentState = context.state;
         return {
           state: {
@@ -356,7 +374,7 @@ const createRootComponent = () => {
     },
 
     // View
-    view(id, { state }): VNode {
+    view({ id, state }): VNode {
       return div(`#${id}`, [
         div(`Counter: ${state?.counter ?? 0}`),
         button(
@@ -377,6 +395,8 @@ const createRootComponent = () => {
 const createChildComponent = () => {
   return component<ChildComponent>(
     ({ action, rootAction }): Config<ChildComponent> => ({
+      state: (): Record<string, never> => ({}),
+
       actions: {
         TriggerIncrement: (_, context) => {
           contextTracker.actions.ChildTriggerIncrement = {
@@ -393,7 +413,7 @@ const createChildComponent = () => {
         }
       },
 
-      view(id, { rootState }): VNode {
+      view({ id, rootState }): VNode {
         return div(`#${id}`, [
           div(`Root counter from child: ${rootState?.counter ?? 0}`),
           button(
@@ -576,7 +596,9 @@ describe("Lifecycle and Data Flow", () => {
         init: action("TestMutation"),
         actions: {
           TestMutation: (_, context) => {
-            if (!context.state) throw new Error("Context state is required");
+            if (!context.state) {
+              throw new Error("Context state is required");
+            }
             const state = context.state;
             stateInAction = state;
             mutationAttempted = true;
@@ -609,7 +631,9 @@ describe("Lifecycle and Data Flow", () => {
       expect(stateInAction).toBeDefined();
 
       // Assert state is not null before using it
-      if (!stateInAction) throw new Error("stateInAction should be set");
+      if (!stateInAction) {
+        throw new Error("stateInAction should be set");
+      }
 
       const checkedState: TestState = stateInAction;
       expect(Object.isFrozen(checkedState)).toBe(true);
@@ -851,7 +875,9 @@ describe("Lifecycle and Data Flow", () => {
 
       const finalState = getWindowState()?.app;
       expect(finalState).toBeDefined();
-      if (!finalState) throw new Error("finalState should be defined");
+      if (!finalState) {
+        throw new Error("finalState should be defined");
+      }
     });
 
     it("should re-render child when rootState changes", async () => {
@@ -1043,7 +1069,9 @@ describe("Lifecycle and Data Flow", () => {
       expect(patchEventState).toBeDefined();
       expect(patchEventState).not.toBeNull();
 
-      if (!patchEventState) throw new Error("patchEventState should be set");
+      if (!patchEventState) {
+        throw new Error("patchEventState should be set");
+      }
 
       expect(patchEventState.app).toBeDefined();
       expect(patchEventState.app.executionOrder).toContain("mount");
@@ -1135,7 +1163,7 @@ describe("Lifecycle and Data Flow", () => {
             }
           })
         },
-        view: (id, { state }) => div(`#${id}`, `Child: ${state.data}`)
+        view: ({ id, state }) => div(`#${id}`, `Child: ${state.data}`)
       }));
 
       // Create parent that can toggle child
@@ -1149,7 +1177,7 @@ describe("Lifecycle and Data Flow", () => {
           actions: {
             Toggle: (_, { state }) => ({ state: { ...state, showChild: !state.showChild } })
           },
-          view: (id, { state }) =>
+          view: ({ id, state }) =>
             div(`#${id}`, [
               button(`#toggle-button`, { on: { click: a("Toggle") } }, "Toggle"),
               state.showChild ? childWithAsyncTask("#child", {}) : null

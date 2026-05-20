@@ -34,6 +34,7 @@ export default [
       ...tseslint.configs.recommended.rules,
       ...prettierConfig.rules,
       "prefer-template": "error",
+      "curly": ["error", "all"],
 
       // Disable base ESLint rules that are superseded by TypeScript rules
       "no-unused-vars": "off",
@@ -56,17 +57,7 @@ export default [
       ],
 
       // Type assertions
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "TSAsExpression",
-          message: "Type assertions are not allowed."
-        },
-        {
-          selector: "TSTypeAssertion",
-          message: "Type assertions are not allowed."
-        }
-      ],
+      "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
 
       // Prettier integration
       "prettier/prettier": "error",

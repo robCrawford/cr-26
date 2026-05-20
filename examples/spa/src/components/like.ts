@@ -28,6 +28,6 @@ export default component<Component>(({ action, rootAction, rootTask }) => ({
       ]
     })
   },
-  view: (id, { props, rootState }): VNode =>
+  view: ({ id, props, rootState }): VNode =>
     button(`#${id}.like`, { on: { click: action("Like") } }, `👍 ${rootState.likes[props.page]}`)
 }));

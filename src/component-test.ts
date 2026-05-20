@@ -1,33 +1,41 @@
 /*
 API for unit testing components
 
-- Initialise component test API
-import counter from "./counter";
-const { initialState, actionTest, taskTest, config } = componentTest(counter, { start: 0 });
+- Initialise test api
+  ```
+  const { initialState, actionTest, taskTest, config } = componentTest(counter, { start: 0 });
+  ```
 
-- Test an action: outputs `state` and `next` results as data
-const { state, next } = actionTest("Increment", { step: 1 });
+- Test actions
+  ```
+  const { state, next } = actionTest("Increment", { step: 1 });
+  ```
 
 - Test an action with custom state
-const { state, next } = actionTest("Increment", { step: 1 }, { state: { count: 5 } });
+  ```
+  const { state, next } = actionTest("Increment", { step: 1 }, { state: { count: 5 } });
+  ```
 
-- Test an action with rootState or event
-const { state, next } = actionTest("HandleSubmit", {}, {
-  state: customState,
-  rootState: { theme: "dark" },
-  event: mockEvent
-});
+- Test an action with other custom context props
+  ```
+  const { state, next } = actionTest("HandleSubmit", {}, {
+    state: customState,
+    rootState: { theme: "dark" },
+    event: mockEvent
+  });
+  ```
 
-- Test a task: returns `success` and `failure` callbacks for tests to invoke
-const { perform, success, failure } = taskTest("ValidateCount", { count: 0 });
-const { name, data } = success({ text: "Test" });
+- Test a task
+  ```
+  const { perform, success, failure } = taskTest("ValidateCount", { count: 0 });
+  const { name, data } = success({ text: "Test" });
+  ```
 */
-import { Component, Config, Context, GetConfig } from "./cr-26.types";
-export { componentRegistry, _setTestKey, _resetForTest } from "./cr-26";
+import { ActionThunk, Component, Config, Context, GetConfig, ThunkType } from "./cr-26.types";
 
-// Options for testing actions with custom context
-// Note: Props are set during component initialization and cannot be overridden per-action
 export type ActionTestOptions<TState, TRootState> = {
+  // Override the component id for this test (defaults to "")
+  id?: string;
   // Override the component state for this test (defaults to initialState)
   state?: TState;
   // Provide rootState for components that access it
@@ -111,6 +119,7 @@ export const componentTest = <TComponent extends Component>(
 
       // Returns any next operations as data
       return actions[name]?.(data, {
+        id: options?.id ?? "",
         props: props ?? {},
         state: options?.state !== undefined ? options.state : (initialState ?? {}),
         rootState: options?.rootState ?? {},
@@ -141,3 +150,10 @@ export const expectArray = <T>(items?: T | T[]): T[] => {
   }
   return items;
 };
+
+// For mocking passed-in action thunks:
+// const onDismiss = mockThunk();
+// componentTest(notification, { text: "test", onDismiss }); // Pass to prop in test setup
+// expect(next).toBe(onDismiss);
+export const mockThunk = (): ActionThunk =>
+  Object.assign(() => {}, { type: ThunkType.Action as const });

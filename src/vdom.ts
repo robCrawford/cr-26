@@ -4,7 +4,8 @@ import {
   classModule,
   attributesModule,
   propsModule,
-  eventListenersModule
+  eventListenersModule,
+  styleModule
 } from "snabbdom";
 import hyperscriptHelpers from "hyperscript-helpers";
 import type { VNode, Hooks } from "snabbdom";
@@ -74,7 +75,13 @@ export function memo<TProps extends Record<string, unknown>>(
   };
 }
 
-export const patch = init([classModule, attributesModule, propsModule, eventListenersModule]);
+export const patch = init([
+  classModule,
+  attributesModule,
+  propsModule,
+  eventListenersModule,
+  styleModule
+]);
 
 export const html = hyperscriptHelpers(h);
 

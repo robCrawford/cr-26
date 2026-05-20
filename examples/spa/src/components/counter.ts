@@ -1,14 +1,16 @@
-import { component, html, Next, Task, VNode } from "cr-26";
+import { ActionThunk, component, html, Next, Task, VNode } from "cr-26";
 import notification from "./notification";
 import { validateCount } from "../services/validation";
+import { RootActionPayloads } from "../app";
 const { div, button } = html;
 
 export type Props = Readonly<{
   start: number;
+  setParentCount: (count: number) => ActionThunk;
 }>;
 
 export type State = Readonly<{
-  counter: number;
+  count: number;
   feedback: string;
 }>;
 
@@ -28,11 +30,12 @@ export type Component = {
   State: State;
   ActionPayloads: ActionPayloads;
   TaskPayloads: TaskPayloads;
+  RootActionPayloads: RootActionPayloads;
 };
 
 export default component<Component>(({ action, task }) => ({
   state: (props): State => ({
-    counter: props.start,
+    count: props.start,
     feedback: ""
   }),
 
@@ -43,7 +46,7 @@ export default component<Component>(({ action, task }) => ({
       return {
         state: {
           ...state,
-          counter: state.counter + step
+          count: state.count + step
         },
         next: action("Validate")
       };
@@ -52,30 +55,26 @@ export default component<Component>(({ action, task }) => ({
       return {
         state: {
           ...state,
-          counter: state.counter - step
+          count: state.count - step
         },
         next: action("Validate")
       };
     },
-    Validate: (_, { state }): { state: State; next: Next } => {
+    Validate: (_, { state, props }): { state: State; next: Next } => {
       return {
         state,
         next: [
           action("SetFeedback", { text: "Validating..." }),
           // An async task
-          task("ValidateCount", { count: state.counter })
+          task("ValidateCount", { count: state.count }),
+          // A parent action
+          props.setParentCount(state.count)
         ]
       };
     },
     SetFeedback: ({ text }, { state }): { state: State } => {
       return {
-        state:
-          text === state.feedback
-            ? state
-            : {
-                ...state,
-                feedback: text
-              }
+        state: text === state.feedback ? state : { ...state, feedback: text }
       };
     }
   },
@@ -90,11 +89,12 @@ export default component<Component>(({ action, task }) => ({
     }
   },
 
-  view(id, { state }): VNode {
+  view({ id, state }): VNode {
     return div(`#${id}.counter`, [
       button({ on: { click: action("Increment", { step: 1 }) } }, "+"),
-      div(String(state.counter)),
+      div(String(state.count)),
       button({ on: { click: action("Decrement", { step: 1 }) } }, "-"),
+
       // Child component - `notification` module
       notification(`#${id}-feedback`, {
         text: state.feedback,

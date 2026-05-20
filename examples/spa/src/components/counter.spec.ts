@@ -1,13 +1,17 @@
-import { expectOne, expectArray, componentTest } from "cr-26/test";
+import { expectOne, expectArray, componentTest, mockThunk } from "cr-26/test";
 import counter, { State, Component } from "./counter";
+
+const parentActionThunk = mockThunk();
+const setParentCount = vi.fn(() => parentActionThunk);
 
 describe("Counter component", () => {
   const { initialState, actionTest, taskTest, config } = componentTest<Component>(counter, {
+    setParentCount,
     start: 0
   });
 
   it("should set initial state", () => {
-    expect(initialState).toEqual({ counter: 0, feedback: "" });
+    expect(initialState).toEqual({ count: 0, feedback: "" });
   });
 
   it("should run initial action", () => {
@@ -20,7 +24,7 @@ describe("Counter component", () => {
     it("should update state", () => {
       expect(state).toEqual({
         ...initialState,
-        counter: 1
+        count: 1
       });
     });
 
@@ -37,7 +41,7 @@ describe("Counter component", () => {
     it("should update state", () => {
       expect(state).toEqual({
         ...initialState,
-        counter: -1
+        count: -1
       });
     });
 
@@ -57,13 +61,16 @@ describe("Counter component", () => {
 
     it("should return next", () => {
       const nextItems = expectArray(next);
-      expect(nextItems.length).toBe(2);
+      expect(nextItems.length).toBe(3);
 
       expect(nextItems[0].name).toBe("SetFeedback");
       expect(nextItems[0].data).toEqual({ text: "Validating..." });
 
       expect(nextItems[1].name).toBe("ValidateCount");
       expect(nextItems[1].data).toEqual({ count: 0 });
+
+      expect(setParentCount).toHaveBeenCalledWith(0);
+      expect(nextItems[2]).toBe(parentActionThunk);
     });
   });
 

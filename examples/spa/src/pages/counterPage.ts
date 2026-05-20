@@ -1,19 +1,45 @@
 import { component, html, VNode } from "cr-26";
 import counter from "../components/counter";
+import draggableTotal from "../components/draggableTotal";
 import themeMenu from "../components/themeMenu";
 import like from "../components/like";
 import { RootState, RootTaskPayloads } from "../app";
 const { div, span, a } = html;
 
+export type State = Readonly<{
+  counts: number[];
+}>;
+
+type ActionPayloads = Readonly<{
+  SetCount: { index: number; count: number };
+}>;
+
 export type Component = {
+  State: State;
+  ActionPayloads: ActionPayloads;
   RootState: RootState;
   RootTaskPayloads: RootTaskPayloads;
 };
 
-export default component<Component>(({ rootTask }) => ({
+export default component<Component>(({ action, rootTask }) => ({
   init: rootTask("SetDocTitle", { title: "Counter Page" }),
 
-  view(id): VNode {
+  state: (): State => ({
+    counts: [0, 0]
+  }),
+
+  actions: {
+    SetCount: ({ index, count }, { state }): { state: State } => {
+      return {
+        state: {
+          ...state,
+          counts: { ...state.counts, [index]: count }
+        }
+      };
+    }
+  },
+
+  view({ id, state }): VNode {
     return div(`#${id}`, [
       div(".content", [
         themeMenu("#theme-menu"),
@@ -23,8 +49,17 @@ export default component<Component>(({ rootTask }) => ({
         ]),
         like("#counter-like", { page: "counterPage" })
       ]),
-      counter("#counter-0", { start: 0 }),
-      counter("#counter-1", { start: -1 })
+      counter("#counter-0", {
+        start: 0,
+        setParentCount: (count: number) => action("SetCount", { index: 0, count })
+      }),
+      counter("#counter-1", {
+        start: -1,
+        setParentCount: (count: number) => action("SetCount", { index: 1, count })
+      }),
+      draggableTotal("#draggable-total", {
+        total: Object.values(state.counts).reduce((acc, count) => acc + count, 0)
+      })
     ]);
   }
 }));

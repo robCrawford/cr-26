@@ -88,6 +88,9 @@ export const log = {
 
     // Console logging
     if (logEnabled) {
+      if (groupId) {
+        console.groupEnd();
+      }
       console.group(`%c#${id}`, "color: #69f");
       if (state) {
         console.log(`${JSON.stringify(state)}`);
@@ -123,7 +126,10 @@ export const log = {
 
     // Console logging
     if (logEnabled) {
-      if (!groupId || groupId !== id) {
+      if (groupId !== id) {
+        if (groupId) {
+          console.groupEnd();
+        }
         console.group(`%c#${id}`, "color: #69f");
         groupId = id;
       }
@@ -200,7 +206,9 @@ export const log = {
     // Console logging
     if (logEnabled) {
       console.log(`%c\n...#${id} task "${label}" failure`, "color: #dd8");
-      if (err) console.error(JSON.stringify(err));
+      if (err) {
+        console.error(JSON.stringify(err));
+      }
     }
   },
   render(id: string, props?: Record<string, unknown> | null): void {
@@ -215,10 +223,40 @@ export const log = {
       groupId = "";
     }
   },
+  midRenderStateChange(id: string, props?: Record<string, unknown> | null): void {
+    // Send to Redux DevTools when a child action changes state during the parent's view call
+    if (devToolsConnection) {
+      devToolsConnection.send(
+        {
+          type: `[Re-render: mid-render state change] #${id}`,
+          meta: { isRerender: true }
+        },
+        getAggregatedState()
+      );
+    }
+
+    // Console logging
+    if (logEnabled) {
+      console.groupEnd();
+      let msg = `↺ Re-render #${id} due to mid-render state change`;
+      if (props && Object.keys(props).length) {
+        msg += `, props: ${JSON.stringify(props, replacer)}`;
+      }
+      console.log(`%c${msg}`, "color: #a8d");
+      groupId = "";
+    }
+  },
   patch(): void {
-    // Send updated state to Redux DevTools after VDOM patch completes
-    // At this point, destroy hooks have run and window.state is clean
-    // ALWAYS sent - critical for state synchronization (shows component cleanup)
+    // Console logging only — announces the patch before it executes
+    if (logEnabled) {
+      console.log(`%c» PATCH`, "color: #888");
+      console.groupEnd();
+    }
+  },
+  patchComplete(): void {
+    // Send to Redux DevTools after the VDOM patch has fully executed.
+    // Destroy hooks have run by this point so window.state reflects only
+    // components that survived the patch — the snapshot is clean.
     if (devToolsConnection) {
       devToolsConnection.send(
         {
@@ -228,19 +266,13 @@ export const log = {
         getAggregatedState()
       );
     }
-
-    // Console logging
-    if (logEnabled) {
-      console.log(`%c» PATCH`, "color: #888");
-      console.groupEnd();
-    }
   },
   manualError(id: string, name: string): void {
     throw Error(`#${id} "${name}" cannot be invoked manually`);
   }
 };
 
-function replacer(k: string, v: string): string {
+function replacer(_k: string, v: string): string {
   return typeof v === "function" ? "[fn]" : v;
 }
 

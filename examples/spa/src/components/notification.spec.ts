@@ -1,9 +1,7 @@
-import { componentTest } from "cr-26/test";
-import { ThunkType, ActionThunk } from "cr-26";
+import { componentTest, mockThunk } from "cr-26/test";
 import notification, { State, Component } from "./notification";
 
-const passedInActionThunk: ActionThunk = () => {};
-passedInActionThunk.type = ThunkType.Action;
+const passedInActionThunk = mockThunk();
 
 describe("Notification component", () => {
   const { initialState, actionTest } = componentTest<Component>(notification, {

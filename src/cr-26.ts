@@ -5,6 +5,7 @@ import {
   ActionThunk,
   Component,
   ComponentInstance,
+  EventOptions,
   GetActionThunk,
   GetConfig,
   GetTaskThunk,
@@ -18,9 +19,9 @@ export {
   ActionHandler,
   ActionThunk,
   Component,
-  ComponentInstance,
   Config,
   Context,
+  EventOptions,
   GetActionThunk,
   GetConfig,
   GetTaskThunk,
@@ -49,6 +50,11 @@ let rootState: Record<string, unknown> | undefined;
 // Render cycle state
 let renderingFromRoot = false;
 let stateChanged = false;
+// Tracks state changes that occur *during* a root view call (e.g. a newly-mounted
+// child's init action relaying state upward via an ActionThunk prop). Distinct from
+// stateChanged so the re-render loop only fires for mid-render mutations, not the
+// state change that originally triggered the render.
+let stateChangedDuringRender = false;
 let noRender = 0;
 
 const appId = "app";
@@ -64,6 +70,7 @@ function resetAppState(): void {
 
   renderingFromRoot = false;
   stateChanged = false;
+  stateChangedDuringRender = false;
   noRender = 0;
 }
 
@@ -165,6 +172,7 @@ function executeAction(
   const prevStateFrozen = deepFreeze(prevState);
 
   const actionOutput = actions[actionName](data, {
+    id,
     props: props ?? {},
     state: prevStateFrozen ?? {},
     rootState: rootState ?? {},
@@ -179,6 +187,9 @@ function executeAction(
 
   const currStateChanged = hasStateConfig && instance.state !== prevState;
   stateChanged = stateChanged || currStateChanged;
+  if (currStateChanged && renderingFromRoot) {
+    stateChangedDuringRender = true;
+  }
   log.updateStart(
     id,
     currStateChanged ? prevState : undefined,
@@ -213,12 +224,14 @@ function performTask(
   const { perform, success, failure } = tasks[taskName](data);
   const runSuccess = (result: unknown): Next | undefined =>
     success?.(result, {
+      id,
       props: props ?? {},
       state: state ?? {},
       rootState: rootState ?? {}
     });
   const runFailure = (err: unknown): Next | undefined =>
     failure?.(err, {
+      id,
       props: props ?? {},
       state: state ?? {},
       rootState: rootState ?? {}
@@ -291,20 +304,51 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
     instance.inCurrentRender = true;
 
     const prevVNode = instance.vnode;
+
+    // Reset before each root view call so only state changes occurring *during* view
+    // execution (e.g. newly-mounted children relaying init state upward) are detected.
+    if (isRenderRoot) {
+      stateChangedDuringRender = false;
+    }
+
+    log.render(instance.id, instance.props);
     setInViewExecution(true);
-    instance.vnode = instance.config.view(instance.id, {
+    instance.vnode = instance.config.view({
+      id: instance.id,
       props: instance.props ?? {},
       state: instance.state ?? {},
       rootState: rootState ?? {}
     });
     setInViewExecution(false);
-    log.render(instance.id, instance.props);
     log.setStateGlobal(instance.id, instance.state);
 
     // Patch the DOM once at the root
     if (isRenderRoot && prevVNode) {
-      patch(prevVNode, instance.vnode);
+      // A newly-mounted child's init action may relay state upward via an ActionThunk
+      // prop during the view call above, updating instance.state after the view's
+      // `state` snapshot was already captured. Re-render until the output stabilises
+      // so the DOM reflects the settled state in a single sync patch.
+      while (stateChangedDuringRender) {
+        stateChangedDuringRender = false;
+        Array.from(componentRegistry.values()).forEach((inst) => {
+          inst.inCurrentRender = false;
+        });
+        instance.inCurrentRender = true;
+        log.midRenderStateChange(instance.id, instance.props);
+        setInViewExecution(true);
+        instance.vnode = instance.config.view({
+          id: instance.id,
+          props: instance.props ?? {},
+          state: instance.state ?? {},
+          rootState: rootState ?? {}
+        });
+        setInViewExecution(false);
+        log.setStateGlobal(instance.id, instance.state);
+      }
+
       log.patch();
+      patch(prevVNode, instance.vnode);
+      log.patchComplete();
       publish("patch");
       stateChanged = false;
       renderingFromRoot = false;
@@ -385,9 +429,9 @@ export function renderComponent<TComponent extends Component>(
     action,
     task,
     // Assert root action/task types from the `Component` type
-    // eslint-disable-next-line no-restricted-syntax
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     rootAction: rootAction as GetActionThunk<TComponent["RootActionPayloads"]>,
-    // eslint-disable-next-line no-restricted-syntax
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     rootTask: rootTask as GetTaskThunk<TComponent["RootTaskPayloads"]>
   });
 
@@ -430,7 +474,8 @@ export function renderComponent<TComponent extends Component>(
 
   log.render(id, props);
   setInViewExecution(true);
-  instance.vnode = config.view(id, {
+  instance.vnode = config.view({
+    id,
     props: props ?? {},
     state: instance.state ?? {},
     rootState: rootState ?? {}
@@ -445,7 +490,9 @@ export function renderComponent<TComponent extends Component>(
 }
 
 function setCleanup(instance: ComponentInstance): void {
-  if (!instance.vnode) return;
+  if (!instance.vnode) {
+    return;
+  }
 
   setHook(instance.vnode, "destroy", () => {
     const inst = componentRegistry.get(instance.id);
@@ -547,6 +594,31 @@ const deepFreeze =
         return o;
       }
     : <T>(o?: T): T | undefined => o;
+
+/**
+ * Wraps a thunk with synchronous event method calls that must run before the action handler.
+ * Use in place of manually invoking a thunk as a function.
+ *
+ * @example
+ * div({ on: { submit: withEventOptions(action("Submit"), { preventDefault: true }) } })
+ */
+export function withEventOptions(
+  thunk: ActionThunk | TaskThunk,
+  options: EventOptions
+): (e: NormalizedEvent) => void {
+  return (e: NormalizedEvent): void => {
+    if (options.preventDefault) {
+      e.preventDefault();
+    }
+    if (options.stopPropagation) {
+      e.stopPropagation();
+    }
+    if (options.stopImmediatePropagation) {
+      e.stopImmediatePropagation();
+    }
+    thunk(e);
+  };
+}
 
 // Pub/sub
 

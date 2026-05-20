@@ -7,7 +7,13 @@ const testKey = _setTestKey({});
 
 const patchSpy = vi.spyOn(vdom, "patch");
 const renderSpy = vi.spyOn(log, "render");
-const ctx = { rootState: { theme: "a" }, props: { test: "x" }, state: { count: 0 } };
+const ctx = {
+  id: "parent",
+  rootState: { theme: "a" },
+  props: { test: "x" },
+  state: { count: 0 },
+  event: undefined
+};
 
 describe("cr-26 components", () => {
   let rootAction: Function = () => {};
@@ -72,12 +78,16 @@ describe("cr-26 components", () => {
             const k = data?.k;
             const state = ctx.state ?? { count: 0 };
             const props = ctx.props ?? { test: "" };
-            if (k === "state") state.count = 999;
-            if (k === "props") props.test = "999";
+            if (k === "state") {
+              state.count = 999;
+            }
+            if (k === "props") {
+              props.test = "999";
+            }
             return { state };
           }
         },
-        view: (id) => div(`#${id}`, "test")
+        view: ({ id }) => div(`#${id}`, "test")
       };
     });
 
@@ -98,7 +108,7 @@ describe("cr-26 components", () => {
         state: () => ({ count: 0 }),
         actions: parentActions,
         tasks: parentTasks,
-        view: (id, { state }) => {
+        view: ({ id, state }) => {
           const count = state?.count ?? 0;
           return div(
             `#${id}`,
@@ -137,7 +147,7 @@ describe("cr-26 components", () => {
             return { state };
           }
         },
-        view: (id) => div(`#${id}`, [parent(`#parent`, { test: "x" })])
+        view: ({ id }) => div(`#${id}`, [parent(`#parent`, { test: "x" })])
       };
     });
 
@@ -304,7 +314,7 @@ describe("cr-26 components", () => {
       actions: {
         DoSomething: (_, { state }) => ({ state })
       },
-      view: (id) => {
+      view: ({ id }) => {
         statelessAction = action("DoSomething");
         return div(`#${id}`, "Stateless");
       }
@@ -320,7 +330,7 @@ describe("cr-26 components", () => {
       actions: {
         Increment: (_, { state }) => ({ state: { ...state, count: state.count + 1 } })
       },
-      view: (id) => div(`#${id}`, [statelessComponent("stateless", {})])
+      view: ({ id }) => div(`#${id}`, [statelessComponent("stateless", {})])
     }));
 
     mount({ app: appComponent, props: {} });

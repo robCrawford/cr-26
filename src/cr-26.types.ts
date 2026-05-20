@@ -59,6 +59,8 @@ export type Next = undefined | ActionThunk | TaskThunk | (ActionThunk | TaskThun
  * function. `event` is only populated when the action was triggered by a DOM `on:` handler.
  */
 export type Context<TProps, TState, TRootState> = {
+  /** The component's unique id. */
+  id: string;
   /** Current component props. */
   props: TProps;
   /** Current component state. */
@@ -129,12 +131,26 @@ export type Component = {
   RootTaskPayloads?: Record<string, unknown>;
 };
 
+/**
+ * @internal — Untyped config shape used in {@link ComponentInstance} because each instance has a
+ * different `TComponent` generic. The typed version is {@link Config}.
+ */
+export type InternalConfig = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  state?: (...args: any[]) => any;
+  init?: Next;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actions?: Record<string, (...args: any[]) => any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tasks?: Record<string, (...args: any[]) => any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  view: (...args: any[]) => VNode;
+};
+
 /** @internal */
 export type ComponentInstance = {
   id: string;
-  // Each instance has a different `TComponent` so cannot be typed at this level
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  config: Config<any>;
+  config: InternalConfig;
   state?: Record<string, unknown>;
   props?: Record<string, unknown>;
   prevProps?: Record<string, unknown>;
@@ -144,13 +160,16 @@ export type ComponentInstance = {
   inCurrentRender: boolean;
 };
 
+type StateConfig<TComponent extends Component> = undefined extends TComponent["State"]
+  ? { state?: never }
+  : { state: (props: TComponent["Props"]) => TComponent["State"] };
+
 /**
  * The configuration object returned by the callback passed to `component(...)`.
- * All fields except `view` are optional.
+ * All fields except `view` are optional. `state` is required when `State` is declared on the
+ * `Component` type, and must be omitted when it is not.
  */
-export type Config<TComponent extends Component = Component> = {
-  /** Returns the component's initial local state from its props. Called once on first mount. */
-  state?: (props: TComponent["Props"]) => TComponent["State"];
+export type Config<TComponent extends Component = Component> = StateConfig<TComponent> & {
   /**
    * Action or task thunk(s) to dispatch when this component first mounts.
    * Created with `action(...)` or `task(...)`.
@@ -175,10 +194,7 @@ export type Config<TComponent extends Component = Component> = {
     >;
   };
   /** Renders the component to a virtual DOM node. Called on every render cycle. */
-  view: (
-    id: string,
-    ctx: Context<TComponent["Props"], TComponent["State"], TComponent["RootState"]>
-  ) => VNode;
+  view: (ctx: Context<TComponent["Props"], TComponent["State"], TComponent["RootState"]>) => VNode;
 };
 
 /**
@@ -207,13 +223,26 @@ export type ValueOf<T> = T[keyof T];
 
 export type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T;
 
+/**
+ * Options passed to {@link withEventOptions} to call synchronous event methods before the thunk
+ * is dispatched. Use this instead of manually invoking a thunk as a function.
+ */
+export type EventOptions = {
+  preventDefault?: boolean;
+  stopPropagation?: boolean;
+  stopImmediatePropagation?: boolean;
+};
+
 type TargetInputProps = EventTarget & Partial<HTMLInputElement> & Partial<Node>;
 
 /**
  * Augmented `Event` type used in action handler context. Use in place of the native `Event` type
  * to access `target` input properties (e.g. `value`) without manual narrowing.
  */
-export type NormalizedEvent = Event & {
-  target: TargetInputProps | null;
-  currentTarget: TargetInputProps | null;
-} & Partial<TouchEvent>;
+export type NormalizedEvent = Event &
+  Partial<TouchEvent> &
+  Partial<MouseEvent> &
+  Partial<PointerEvent> & {
+    target: TargetInputProps | null;
+    currentTarget: TargetInputProps | null;
+  };

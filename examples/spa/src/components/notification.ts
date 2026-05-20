@@ -37,7 +37,7 @@ export default component<Component>(({ action }) => ({
     }
   },
 
-  view(id, { props, state }): VNode {
+  view({ id, props, state }): VNode {
     return div(
       `#${id}.notification`,
       {

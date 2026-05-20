@@ -13,7 +13,7 @@ export type Component = {
 export default component<Component>(({ rootTask }) => ({
   init: rootTask("SetDocTitle", { title: "List Page" }),
 
-  view(id): VNode {
+  view({ id }): VNode {
     return div(
       `#${id}`,
       div(".content", [

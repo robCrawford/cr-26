@@ -50,7 +50,7 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { ...state, count: state.count + step } };
             }
           },
-          view: (id, ctx) => div(`#${id}`, `${ctx.state?.count ?? 0}`)
+          view: (ctx) => div(`#${ctx.id}`, `${ctx.state?.count ?? 0}`)
         };
       });
 
@@ -81,7 +81,7 @@ describe("Component Lifecycle & State Management", () => {
               success: () => undefined
             })
           },
-          view: (id, ctx) => div(`#${id}`, `${ctx.state?.result ?? 0}`)
+          view: (ctx) => div(`#${ctx.id}`, `${ctx.state?.result ?? 0}`)
         };
       });
 
@@ -114,7 +114,7 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { ...state, count: state.count + 1 } };
             }
           },
-          view: (id, ctx) => div(`#${id}`, `Child: ${ctx.state?.count ?? 0}`)
+          view: (ctx) => div(`#${ctx.id}`, `Child: ${ctx.state?.count ?? 0}`)
         };
       });
 
@@ -132,8 +132,8 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { showChild: !state.showChild } };
             }
           },
-          view: (id, ctx) =>
-            div(`#${id}`, (ctx.state?.showChild ?? true) ? [child("#child", {})] : [])
+          view: (ctx) =>
+            div(`#${ctx.id}`, (ctx.state?.showChild ?? true) ? [child("#child", {})] : [])
         };
       });
 
@@ -182,7 +182,7 @@ describe("Component Lifecycle & State Management", () => {
               return { state: ctx?.state ?? {} };
             }
           },
-          view: (id) => div(`#${id}`, "test")
+          view: ({ id }) => div(`#${id}`, "test")
         };
       });
 
@@ -211,7 +211,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id, ctx) => div(`#${id}`, `${ctx.props?.value ?? 0}`)
+          view: (ctx) => div(`#${ctx.id}`, `${ctx.props?.value ?? 0}`)
         };
       });
 
@@ -229,7 +229,7 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { childValue } };
             }
           },
-          view: (id, ctx) => div(`#${id}`, [child("#child", { value: ctx.state?.childValue ?? 1 })])
+          view: (ctx) => div(`#${ctx.id}`, [child("#child", { value: ctx.state?.childValue ?? 1 })])
         };
       });
 
@@ -260,7 +260,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id) => div(`#${id}`, "child")
+          view: ({ id }) => div(`#${id}`, "child")
         };
       });
 
@@ -272,7 +272,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id) => div(`#${id}`, "grandchild")
+          view: ({ id }) => div(`#${id}`, "grandchild")
         };
       });
 
@@ -290,9 +290,9 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { show } };
             }
           },
-          view: (id, ctx) =>
+          view: (ctx) =>
             div(
-              `#${id}`,
+              `#${ctx.id}`,
               (ctx.state?.show ?? true) ? [child("#child", {}), grandchild("#grandchild", {})] : []
             )
         };
@@ -330,7 +330,7 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { count } };
             }
           },
-          view: (id, ctx) => div(`#${id}`, `${ctx.state?.count ?? 0}`)
+          view: (ctx) => div(`#${ctx.id}`, `${ctx.state?.count ?? 0}`)
         };
       });
 
@@ -369,9 +369,9 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { ...state, count: state.count + 1 } };
             }
           },
-          view: (id, ctx) => {
+          view: (ctx) => {
             renderCount++;
-            return div(`#${id}`, `${ctx.state?.count ?? 0}`);
+            return div(`#${ctx.id}`, `${ctx.state?.count ?? 0}`);
           }
         };
       });
@@ -416,7 +416,7 @@ describe("Component Lifecycle & State Management", () => {
               return { state: { initialized: true } };
             }
           },
-          view: (id, ctx) => div(`#${id}`, `${ctx.state?.initialized ?? false}`)
+          view: (ctx) => div(`#${ctx.id}`, `${ctx.state?.initialized ?? false}`)
         };
       });
 
@@ -458,7 +458,7 @@ describe("Component Lifecycle & State Management", () => {
               }
             })
           },
-          view: (id, ctx) => div(`#${id}`, ctx.state?.data ?? "")
+          view: (ctx) => div(`#${ctx.id}`, ctx.state?.data ?? "")
         };
       });
 
@@ -491,7 +491,7 @@ describe("Component Lifecycle & State Management", () => {
         State: { internalState: number };
       }> = () => ({
         state: () => ({ internalState: 0 }),
-        view: (id: string, { props }) => {
+        view: ({ id, props }) => {
           const msg = props?.message || "";
           childViewCalls.push(msg);
           return div(`#${id}.child`, msg);
@@ -526,7 +526,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id, { props }) => {
+          view: ({ id, props }) => {
             childRenderCount++;
             return div(`#${id}.child`, props?.message || "");
           }
@@ -546,7 +546,7 @@ describe("Component Lifecycle & State Management", () => {
               state: { ...(ctx?.state ?? { message: "" }), message: data?.text ?? "" }
             })
           },
-          view: (id, { state }) => {
+          view: ({ id, state }) => {
             return div(`#${id}.parent`, [child("#child", { message: state?.message || "" })]);
           }
         };
@@ -574,7 +574,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id) => {
+          view: ({ id }) => {
             return div(`#${id}.child`, "child");
           }
         };
@@ -594,7 +594,7 @@ describe("Component Lifecycle & State Management", () => {
               return { state: ctx?.state ?? { value: 0 } };
             }
           },
-          view: (id) => {
+          view: ({ id }) => {
             return div(`#${id}.parent`, [
               child("#child", {
                 onAction: parentAction("ParentAction", { value: "from-child" })
@@ -637,7 +637,7 @@ describe("Component Lifecycle & State Management", () => {
               state: { ...(ctx?.state ?? { count: 0 }), count: (ctx?.state?.count ?? 0) + 1 }
             })
           },
-          view: (id, { props, state }) => {
+          view: ({ id, props, state }) => {
             viewCalls.push({
               props: props?.message || "",
               state: state?.count || 0
@@ -660,7 +660,7 @@ describe("Component Lifecycle & State Management", () => {
               state: { ...(ctx?.state ?? { message: "" }), message: data?.text ?? "" }
             })
           },
-          view: (id, { state }) => {
+          view: ({ id, state }) => {
             return div(`#${id}.parent`, [child("#child", { message: state?.message || "" })]);
           }
         };
@@ -699,7 +699,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id, { props }) => {
+          view: ({ id, props }) => {
             viewCalls.push(props?.value || "");
             return div(`#${id}`, props?.value || "");
           }
@@ -719,7 +719,7 @@ describe("Component Lifecycle & State Management", () => {
               state: { ...(ctx?.state ?? { value: "" }), value: data?.value ?? "" }
             })
           },
-          view: (id, { state }) => {
+          view: ({ id, state }) => {
             return div(`#${id}.parent`, [child("#child", { value: state?.value || "" })]);
           }
         };
@@ -748,7 +748,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id, { props }) => {
+          view: ({ id, props }) => {
             viewCalls.push(props);
             return div(`#${id}`, props?.value || "empty");
           }
@@ -768,7 +768,7 @@ describe("Component Lifecycle & State Management", () => {
               state: { ...(ctx?.state ?? { childProps: undefined }), childProps: data?.props }
             })
           },
-          view: (id, { state }) => {
+          view: ({ id, state }) => {
             return div(`#${id}.parent`, [child("#child", state?.childProps)]);
           }
         };
@@ -784,6 +784,102 @@ describe("Component Lifecycle & State Management", () => {
       // Props back to empty object (no longer undefined)
       action("SetProps", { props: undefined })(testKey);
       expect(viewCalls[2]).toEqual({});
+    });
+  });
+
+  describe("Child init ActionThunk prop relay to parent", () => {
+    it("should reflect relayed initial state in parent view on the first sync patch", async () => {
+      // Scenario: a parent tracks an aggregate value from its children. Each child has
+      // init: action("Relay") which fires an async task alongside a setTotal prop
+      // callback in the same next array — the documented pattern for relaying initial
+      // state upward.
+      //
+      // Without a fix, the parent view is called with its snapshot state at the start
+      // of the view call. The child's Relay init fires setTotal during that call,
+      // updating instance.state, but the view closure already holds the stale value.
+      // stateChanged becomes true but is reset to false immediately after the patch so
+      // no follow-up render fires until the async task eventually resolves.
+      //
+      // The fix: if stateChanged is true after the root view call, re-render before
+      // patching so the DOM reflects the settled state in a single sync patch.
+
+      const parentViewTotals: number[] = [];
+      let triggerShow: Function = () => {};
+
+      const child = component<{
+        Props: { start: number; setTotal: (n: number) => ActionThunk };
+        State: { value: number; feedback: string };
+        ActionPayloads: { Relay: undefined; SetFeedback: { text: string } };
+        TaskPayloads: { Validate: { value: number } };
+      }>(({ action, task }) => ({
+        state: (props) => ({ value: props.start, feedback: "" }),
+        init: action("Relay"),
+        actions: {
+          Relay: (_, { state, props }) => ({
+            state,
+            next: [
+              action("SetFeedback", { text: "Validating..." }),
+              task("Validate", { value: state.value }),
+              props.setTotal(state.value)
+            ]
+          }),
+          SetFeedback: ({ text }, { state }) => ({
+            state: text === state.feedback ? state : { ...state, feedback: text }
+          })
+        },
+        tasks: {
+          Validate: ({ value }) => ({
+            perform: (): Promise<number> => Promise.resolve(value),
+            success: () => action("SetFeedback", { text: "done" })
+          })
+        },
+        view: ({ id, state }) => div(`#${id}`, String(state.value))
+      }));
+
+      const parent = component<{
+        State: { showChild: boolean; total: number };
+        ActionPayloads: { Show: undefined; SetTotal: { value: number } };
+      }>(({ action: a }) => {
+        triggerShow = a;
+        return {
+          state: () => ({ showChild: false, total: 0 }),
+          actions: {
+            Show: (_, { state }) => ({ state: { ...state, showChild: true } }),
+            SetTotal: ({ value }, { state }) => ({
+              state: value === state.total ? state : { ...state, total: value }
+            })
+          },
+          view: ({ id, state }) => {
+            parentViewTotals.push(state.total);
+            return div(
+              `#${id}`,
+              state.showChild
+                ? [child("#child", { start: -1, setTotal: (n) => a("SetTotal", { value: n }) })]
+                : []
+            );
+          }
+        };
+      });
+
+      mount({ app: parent, props: {} });
+      patchSpy.mockClear();
+
+      // Show the child — its Relay init fires an async task AND setTotal(-1) in
+      // the same next array. Both are synchronous up to the task's Promise.
+      triggerShow("Show")(testKey);
+
+      // One sync patch should have fired
+      expect(patchSpy).toHaveBeenCalledTimes(1);
+
+      // Parent's view must have seen total=-1 in that patch — not waited for async
+      expect(parentViewTotals[parentViewTotals.length - 1]).toBe(-1);
+
+      // Validate task resolves → second patch for SetFeedback
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(patchSpy).toHaveBeenCalledTimes(2);
+
+      // Total remains -1 after async resolution
+      expect(parentViewTotals[parentViewTotals.length - 1]).toBe(-1);
     });
   });
 
@@ -805,7 +901,7 @@ describe("Component Lifecycle & State Management", () => {
               state: { ...(ctx?.state ?? { count: 0 }), count: (ctx?.state?.count ?? 0) + 1 }
             })
           },
-          view: (id, { props, state }) => {
+          view: ({ id, props, state }) => {
             viewCalls.push({
               props: props?.label || "",
               state: state?.count || 0
@@ -823,7 +919,7 @@ describe("Component Lifecycle & State Management", () => {
         return {
           state: () => ({}),
           actions: {},
-          view: (id) => {
+          view: ({ id }) => {
             return div(`#${id}.parent`, [child("#child", { label: "Counter" })]);
           }
         };

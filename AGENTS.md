@@ -55,7 +55,7 @@ export const counter = component<Component>(({ action, task }) => ({
       success: (result) => action("SetFeedback", result)
     })
   },
-  view: (id) => div(`#${id}`, "Counter")
+  view: ({ id }) => div(`#${id}`, "Counter")
 }));
 ```
 
@@ -110,7 +110,7 @@ const testComponent = component<{
   actions: {
     Increment: (_, { state }) => ({ state: { ...state, count: state.count + 1 } })
   },
-  view: (id) => div(`#${id}`, "Test")
+  view: ({ id }) => div(`#${id}`, "Test")
 }));
 ```
 
@@ -176,6 +176,14 @@ tasks: {
     perform: () => validateCount(count),
     success: (result) => action("SetFeedback", result),
     failure: () => action("SetFeedback", { text: "Unavailable" })
+  }),
+
+  // Success/failure receive full context as second argument — use props to relay upward
+  // instead of reaching for rootState or a root action
+  FetchItem: ({ id }): Task<Item, Props, State> => ({
+    perform: () => api.getItem(id),
+    success: (item, { props }): Next => props.onComplete(item),
+    failure: (_, { props }): Next => props.onError()
   }),
 
   // Effect-only (sync) - no success/failure needed
@@ -256,16 +264,26 @@ actions: {
 }
 ```
 
-## Special Cases
+## Event Handling
 
-### Manual thunk invocation exceptions
+### Event options
 
-> ⚠️ **This breaks the normal convention** — thunks should not be called directly under normal circumstances. The only genuine use case is when you need to call synchronous methods on the native event (e.g. `preventDefault()`, `stopPropagation()`) before the action handler runs, alongside data that isn't available at the point the thunk is created.
-
-Most cases that appear to need this can be remodelled by extracting the relevant event data in the action handler and passing it to a task:
+Use `withEventOptions` when you need to call synchronous event methods (`preventDefault`, `stopPropagation`, `stopImmediatePropagation`) before the action handler runs. This keeps the view declarative and avoids manual thunk invocation.
 
 ```typescript
-// ✅ Preferred — no wrapper needed
+import { withEventOptions } from "cr-26";
+
+// Single option
+div({ on: { submit: withEventOptions(action("Submit"), { preventDefault: true }) } })
+
+// Multiple options
+div({ on: { click: withEventOptions(action("ItemClick", { id }), { stopPropagation: true, preventDefault: true }) } })
+```
+
+Most cases that appear to need this can be remodelled without it, by extracting the relevant event data in the action handler and passing it to a task:
+
+```typescript
+// ✅ Preferred — no wrapper needed when you only need event data
 div({ on: { pointerdown: action("PointerDown", { id }) } })
 
 actions: {
@@ -279,21 +297,7 @@ actions: {
 }
 ```
 
-If you genuinely need to call `preventDefault()` or `stopPropagation()` synchronously before the action handler, use a wrapper and relay the event manually:
-
-```typescript
-const onPointerDown =
-  (id: string) =>
-  (e: NormalizedEvent): void => {
-    e.preventDefault();                    // must run synchronously before handler
-    action("PointerDown", { id })(e);      // relay event so ctx.event is populated
-  };
-
-// In view:
-div(`#${id}`, { on: { pointerdown: onPointerDown(state.activeId) } })
-```
-
-Outside of this specific scenario, always pass thunks as direct event handler values.
+Outside of needing synchronous event methods, always pass thunks as direct event handler values.
 
 ## Additional Type Patterns
 
@@ -301,6 +305,7 @@ Outside of this specific scenario, always pass thunks as direct event handler va
 
 ```typescript
 type Context<TProps, TState, TRootState> = {
+  id: string; // Always defined - the component's unique id
   props: TProps; // Always defined (defaults to {})
   state: TState; // Always defined (defaults to {})
   rootState: TRootState; // Always defined (defaults to {})
@@ -308,7 +313,7 @@ type Context<TProps, TState, TRootState> = {
 };
 ```
 
-- `props`, `state`, `rootState` are **non-optional** - no need for `?.`
+- `id`, `props`, `state`, `rootState` are **non-optional** - no need for `?.`
 - `event` only available in actions triggered by DOM events (not in `next` chains)
 - Destructure only what you need: `{ state }`, `{ props, state }`, `{ props, rootState }`
 
@@ -374,6 +379,59 @@ Reset: (_, { state }): { state: State } => ({
 | Selected item (shared siblings) | Parent   | Lift to common ancestor                       |
 | Theme, auth, feature flags      | Root     | Cross-cutting, needed by many components      |
 
+**Don't lift unless something else needs it**: If only one component and its descendants read a piece of state, keep it local. Root state that nothing outside the root view reads is a sign of premature lifting — it adds re-render cost and breaks encapsulation with no benefit. Drag/drop state, animation state, and other interaction state almost always belong in the component that owns the interaction.
+
+**Prefer props over rootState for single fields**: If a component accesses `rootState` for a single field, consider whether that field should be passed as a prop instead. Reserve `rootState` access for components that genuinely need multiple cross-cutting values.
+
+**Prefer derived values over stored state**: If a value can be computed entirely from other state or props already in scope, compute it in the view rather than storing it. Storing computed values creates synchronisation bugs and hidden redundancy.
+
+```typescript
+// ❌ Stored derived state — must be kept in sync manually
+state: { items: Item[]; itemCount: number }
+
+// ✅ Derive in the view
+const count = state.items.length;
+```
+
+### Lifting State and Relaying Actions
+
+When state is shared between siblings, lift it to the nearest common ancestor. The child relays changes up via a **prop factory** — a function prop it calls with runtime values to produce an `ActionThunk`:
+
+```typescript
+// Child declares a factory prop
+type Props = Readonly<{
+  start: number;
+  setParentCount: (count: number) => ActionThunk;
+}>;
+
+// Child calls it in next — alongside local concerns
+Validate: (_, { state, props }): { state: State; next: Next } => ({
+  state,
+  next: [
+    task("ValidateCount", { count: state.count }),
+    props.setParentCount(state.count)  // relay to parent
+  ]
+})
+
+// Parent owns the state and passes the factory
+counter("#counter-0", {
+  start: 0,
+  setParentCount: (count) => action("SetCount", { index: 0, count })
+})
+```
+
+See `examples/spa/src/components/counter.ts` and `examples/spa/src/pages/counterPage.ts` for the complete pattern.
+
+When a child action needs to handle a local DOM concern **and** update root state, fan out with an array — keeping the local task in the child component:
+
+```typescript
+// Local action fans out to both a local task and a root action
+PointerDown: ({ id }, { state }): { state: State; next: Next } => ({
+  state: { ...state, activeId: id },
+  next: [task("AttachDragClone", { ... }), rootAction("DragStart", { id })]
+})
+```
+
 ### Action Callback Pattern
 
 Pass action thunks as props for child-to-parent communication. See `examples/spa/src/components/notification.ts`:
@@ -390,6 +448,23 @@ notification(`#${id}-feedback`, {
   text: state.feedback,
   onDismiss: action("SetFeedback", { text: "" })
 });
+```
+
+The same pattern works in task `success` and `failure` callbacks — the context object is the second argument, so `props` is available there too. Prefer this over a root action when only the parent needs the result:
+
+```typescript
+// In an action — relay upward via prop
+Validate: (_, { state, props }): { state: State; next: Next } => ({
+  state,
+  next: props.onComplete
+}),
+
+// In a task success — identical, use props instead of a root action
+FetchItem: ({ id }): Task<Item, Props, State> => ({
+  perform: () => api.getItem(id),
+  success: (item, { props }): Next => props.onComplete(item),
+  failure: (_, { props }): Next => props.onError()
+})
 ```
 
 > ⚠️ **Do not tighten the type of `on:`** — `hyperscript-helpers` types it as `any`, which is what allows `ActionThunk` values to work in event handlers. Snabbdom's `Listener<T>` (`(this: VNode, ev: T, vnode: VNode) => void`) is incompatible with `ActionThunk`, so narrowing `on:` would break all `action(...)` and `task(...)` usages.
@@ -489,6 +564,7 @@ See `examples/spa/src/components/counter.spec.ts` for comprehensive patterns:
 
 - Testing initial state and init action
 - Testing actions with/without next
+- Testing passed in action thunks
 - Testing tasks (perform, success, failure)
 
 See `examples/spa/src/components/notification.spec.ts` for:
@@ -564,3 +640,6 @@ setHook(vnode, "destroy", () => cleanupChartLibrary(id));
 11. **Context in actions** - `props`, `state`, `rootState` non-optional; `event` optional
 12. **Component type fields are optional** - Only include what you use
 13. **TypeScript strict mode** - Add return types: `{ state: State; next: Next }`, `Task<...>`, `VNode`
+14. **Keep state local unless shared** - Only lift state when a second component needs it; root state read by nothing outside the root view is over-lifted
+15. **Prefer props over rootState for single fields** - A component that reads one field from `rootState` is a signal that field should be a prop
+16. **Don't store derived values** - Compute in the view anything that depends solely on existing state or props

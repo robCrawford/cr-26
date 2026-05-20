@@ -23,7 +23,7 @@ TypeScript components made with pure functions
 
 `component(...)` takes a function which receives `action` and `task` functions.
 
-These are called to create thunks for the framework to execute (they are not called directly):
+These are called to create thunks for the framework to execute — thunks are passed as values and should not be called directly:
 
 ```JavaScript
 export default component(
@@ -40,10 +40,10 @@ Task thunks provide handlers for effects and async operations that may fail.
 
 ### Props and state
 
-The `view` function receives a context input with `props`, `state` and `rootState` for rendering:
+The `view` function receives a context input with `id`, `props`, `state` and `rootState` for rendering:
 
 ```JavaScript
-view(id, { props, state, rootState }) {
+view({ id, props, state, rootState }) {
   return div(`#${id}-message`, [
     // Render from props and state
     h1(props.title),
@@ -143,11 +143,11 @@ const app = component<Component>(({ action, task }) => ({
   },
 
   // View renders from props & state
-  view(id, context) {
+  view({ id, state }) {
     return div(`#${id}-message`, [
-      h3(context.state.title),
-      div(context.state.text),
-      div(context.state.done ? "✅" : "❎")
+      h3(state.title),
+      div(state.text),
+      div(state.done ? "✅" : "❎")
     ]);
   }
 }));
@@ -379,6 +379,7 @@ actions: {
 | Parameter   | Type      | Description                                      |
 | ----------- | --------- | ------------------------------------------------ |
 | `data`      | `Payload` | The payload passed to `action("ActionName", ...)` |
+| `ctx.id`    | `string`  | Unique component instance ID                     |
 | `ctx.props` | `Props`   | Current component props                          |
 | `ctx.state` | `State`   | Current component state                          |
 | `ctx.rootState` | `RootState` | Current root state                         |
@@ -426,6 +427,7 @@ success?: (result: TResult, ctx: Context) => Next
 | Parameter       | Type        | Description                       |
 | --------------- | ----------- | --------------------------------- |
 | `result`        | `TResult`   | The resolved value from `perform` |
+| `ctx.id`        | `string`    | Unique component instance ID      |
 | `ctx.props`     | `Props`     | Current component props           |
 | `ctx.state`     | `State`     | Current component state           |
 | `ctx.rootState` | `RootState` | Current root state                |
@@ -441,6 +443,7 @@ failure?: (error: DeepPartial<TError>, ctx: Context) => Next
 | Parameter       | Type                   | Description                          |
 | --------------- | ---------------------- | ------------------------------------ |
 | `error`         | `DeepPartial<TError>`  | The caught error from `perform`      |
+| `ctx.id`        | `string`               | Unique component instance ID         |
 | `ctx.props`     | `Props`                | Current component props              |
 | `ctx.state`     | `State`                | Current component state              |
 | `ctx.rootState` | `RootState`            | Current root state                   |
@@ -452,12 +455,12 @@ failure?: (error: DeepPartial<TError>, ctx: Context) => Next
 Renders the component to a virtual DOM node.
 
 ```typescript
-view: (id: string, ctx: Context) => VNode
+view: (ctx: Context) => VNode
 ```
 
 | Parameter       | Type        | Description                        |
 | --------------- | ----------- | ---------------------------------- |
-| `id`            | `string`    | Unique component instance ID — use as a DOM selector prefix to avoid clashes |
+| `ctx.id`        | `string`    | Unique component instance ID — use as a DOM selector prefix to avoid clashes |
 | `ctx.props`     | `Props`     | Current component props            |
 | `ctx.state`     | `State`     | Current component state            |
 | `ctx.rootState` | `RootState` | Current root state                 |

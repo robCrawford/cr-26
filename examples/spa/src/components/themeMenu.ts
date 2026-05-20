@@ -7,7 +7,7 @@ type Component = {
 };
 
 export default component<Component>(({ rootAction }) => ({
-  view(id): VNode {
+  view({ id }): VNode {
     return div(`#${id}`, [
       button({ on: { click: rootAction("SetTheme", { theme: "light" }) } }, "Light theme"),
       button({ on: { click: rootAction("SetTheme", { theme: "dark" }) } }, "Dark theme")

@@ -1,7 +1,8 @@
 import { vi } from "vitest";
-import { renderComponent, _setTestKey, html, VNode } from "./cr-26";
+import { component, renderComponent, _setTestKey, html, VNode, withEventOptions } from "./cr-26";
 import * as vdom from "./vdom";
 import { ActionHandler, ActionThunk, Context, GetActionThunk } from "./cr-26.types";
+import { componentTest } from "./component-test";
 const { div } = html;
 
 const patchSpy = vi.spyOn(vdom, "patch");
@@ -13,9 +14,9 @@ describe("cr-26", () => {
   let componentId = 0;
   const getId = () => `_${componentId++}`;
 
-  function view(id: string, ctx: Context<unknown, { count: number }, unknown>): VNode {
+  function view(ctx: Context<unknown, { count: number }, unknown>): VNode {
     state = ctx.state ?? { count: 0 };
-    return div(`#${id}`, "Test");
+    return div(`#${ctx.id}`, "Test");
   }
 
   beforeEach(() => {
@@ -400,19 +401,22 @@ describe("cr-26", () => {
       let capturedEvent: Event | undefined;
       let action: GetActionThunk<{ Click: undefined }>;
 
-      renderComponent(getId(), ({ action: a }) => {
-        action = a;
-        return {
-          state: () => ({ clicked: false }),
-          actions: {
-            Click: (_, ctx) => {
-              capturedEvent = ctx?.event;
-              return { state: { clicked: true } };
-            }
-          },
-          view: (id: string) => div(`#${id}`, "test")
-        };
-      });
+      renderComponent<{ State: { clicked: boolean }; ActionPayloads: { Click: undefined } }>(
+        getId(),
+        ({ action: a }) => {
+          action = a;
+          return {
+            state: () => ({ clicked: false }),
+            actions: {
+              Click: (_, ctx) => {
+                capturedEvent = ctx?.event;
+                return { state: { clicked: true } };
+              }
+            },
+            view: ({ id }) => div(`#${id}`, "test")
+          };
+        }
+      );
 
       // Create a mock DOM event
       const mockEvent = new Event("click");
@@ -427,6 +431,110 @@ describe("cr-26", () => {
       // Verify event was passed to context
       expect(capturedEvent).toBeDefined();
       expect(capturedEvent).toBe(mockEvent);
+    });
+  });
+
+  describe("withEventOptions", () => {
+    function makeEvent(): Event {
+      const e = new Event("click");
+      Object.defineProperty(e, "target", { value: null });
+      return e;
+    }
+
+    function makeComponent(): {
+      action: GetActionThunk<{ Click: undefined }>;
+      capturedEvent: () => Event | undefined;
+    } {
+      let action: GetActionThunk<{ Click: undefined }>;
+      let capturedEvent: Event | undefined;
+
+      renderComponent<{ State: { clicked: boolean }; ActionPayloads: { Click: undefined } }>(
+        getId(),
+        ({ action: a }) => {
+          action = a;
+          return {
+            state: () => ({ clicked: false }),
+            actions: {
+              Click: (_, ctx) => {
+                capturedEvent = ctx?.event;
+                return { state: { clicked: true } };
+              }
+            },
+            view: ({ id }) => div(`#${id}`, "test")
+          };
+        }
+      );
+
+      // @ts-expect-error assigned in renderComponent callback
+      return { action, capturedEvent: () => capturedEvent };
+    }
+
+    it("should call preventDefault when option is set", () => {
+      const { action } = makeComponent();
+      const mockEvent = makeEvent();
+      const preventDefaultSpy = vi.spyOn(mockEvent, "preventDefault");
+
+      withEventOptions(action("Click"), { preventDefault: true })(mockEvent);
+
+      expect(preventDefaultSpy).toHaveBeenCalledOnce();
+    });
+
+    it("should call stopPropagation when option is set", () => {
+      const { action } = makeComponent();
+      const mockEvent = makeEvent();
+      const stopPropagationSpy = vi.spyOn(mockEvent, "stopPropagation");
+
+      withEventOptions(action("Click"), { stopPropagation: true })(mockEvent);
+
+      expect(stopPropagationSpy).toHaveBeenCalledOnce();
+    });
+
+    it("should call stopImmediatePropagation when option is set", () => {
+      const { action } = makeComponent();
+      const mockEvent = makeEvent();
+      const stopImmediateSpy = vi.spyOn(mockEvent, "stopImmediatePropagation");
+
+      withEventOptions(action("Click"), { stopImmediatePropagation: true })(mockEvent);
+
+      expect(stopImmediateSpy).toHaveBeenCalledOnce();
+    });
+
+    it("should call all methods when all options are set", () => {
+      const { action } = makeComponent();
+      const mockEvent = makeEvent();
+      const preventDefaultSpy = vi.spyOn(mockEvent, "preventDefault");
+      const stopPropagationSpy = vi.spyOn(mockEvent, "stopPropagation");
+      const stopImmediateSpy = vi.spyOn(mockEvent, "stopImmediatePropagation");
+
+      withEventOptions(action("Click"), {
+        preventDefault: true,
+        stopPropagation: true,
+        stopImmediatePropagation: true
+      })(mockEvent);
+
+      expect(preventDefaultSpy).toHaveBeenCalledOnce();
+      expect(stopPropagationSpy).toHaveBeenCalledOnce();
+      expect(stopImmediateSpy).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("actionTest id option", () => {
+    const captureId = component<{
+      State: Readonly<{ id: string }>;
+      ActionPayloads: Readonly<{ Capture: undefined }>;
+    }>(() => ({
+      state: () => ({ id: "" }),
+      actions: {
+        Capture: (__, { id, state }): { state: { id: string } } => ({ state: { ...state, id } })
+      },
+      view: ({ id }): VNode => div(`#${id}`, "")
+    }));
+
+    const { actionTest } = componentTest(captureId, {});
+
+    it("should pass custom id to action context", () => {
+      const { state } = actionTest("Capture", undefined, { id: "custom-id" });
+      expect(state.id).toBe("custom-id");
     });
   });
 });

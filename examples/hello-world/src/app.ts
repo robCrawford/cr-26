@@ -70,12 +70,8 @@ const app = component<Component>(({ action, task }) => ({
   },
 
   // View renders from props & state
-  view(id, context): VNode {
-    return div(`#${id}-message`, [
-      h3(context.state.title),
-      div(context.state.text),
-      div(context.state.done ? "✅" : "❎")
-    ]);
+  view({ id, state }): VNode {
+    return div(`#${id}-message`, [h3(state.title), div(state.text), div(state.done ? "✅" : "❎")]);
   }
 }));
 

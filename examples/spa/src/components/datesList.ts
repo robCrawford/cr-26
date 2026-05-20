@@ -77,7 +77,7 @@ export default component<Component>(({ action }) => ({
     })
   },
 
-  view(id, { state }): VNode {
+  view({ id, state }): VNode {
     const filtered = filterDates(state.filterText);
     return div(`#${id}.dates-picker`, [
       div(".ui-row", [
