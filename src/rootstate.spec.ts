@@ -100,26 +100,43 @@ describe("RootState with Memoization", () => {
     expect(seenRootStates[0]).not.toEqual(seenRootStates[1]);
   });
 
-  it("should handle rootState in task success callbacks with cached thunks", () => {
+  it("should handle rootState and state in task success callbacks with cached thunks", () => {
     let taskRootState: Record<string, unknown> | null = null;
+    let taskState: Record<string, unknown> | null = null;
     let childTask: Function = () => {};
+    let childAction: Function = () => {};
+    let resolveTask: ((value: number) => void) | undefined;
 
     const child = component<{
       Props: Record<string, never>;
       State: { count: number };
+      ActionPayloads: {
+        SetCount: { count: number };
+      };
       TaskPayloads: {
         DelayedIncrement: { step: number };
       };
       RootState: { theme: string };
-    }>(({ task: t }) => {
+    }>(({ task: t, action: a }) => {
       childTask = t;
+      childAction = a;
       return {
         state: () => ({ count: 0 }),
+        actions: {
+          SetCount: (data, ctx) => ({
+            state: { ...ctx.state, count: data?.count ?? 0 }
+          })
+        },
         tasks: {
-          DelayedIncrement: (data) => ({
-            perform: () => Promise.resolve(data?.step ?? 0),
-            success: (result, ctx) => {
+          DelayedIncrement: () => ({
+            // Externally controlled promise so state can change while in-flight
+            perform: () =>
+              new Promise<number>((resolve) => {
+                resolveTask = resolve;
+              }),
+            success: (_, ctx) => {
               taskRootState = ctx.rootState;
+              taskState = ctx.state;
               return undefined;
             }
           })
@@ -157,24 +174,21 @@ describe("RootState with Memoization", () => {
     mount({ app, props: {} });
     patchSpy.mockClear();
 
-    // Get task thunks - they should be cached
-    const taskThunk1 = childTask("DelayedIncrement", { step: 1 });
-    const taskThunk2 = childTask("DelayedIncrement", { step: 1 });
+    const taskThunk = childTask("DelayedIncrement", { step: 1 });
 
-    // Verify they're the same cached thunk
-    expect(taskThunk1).toBe(taskThunk2);
+    // Start the async task — perform is now waiting
+    const taskPromise = taskThunk(testKey);
 
-    // Execute the first time
-    return taskThunk1(testKey).then(() => {
-      expect(taskRootState).toEqual({ theme: "light" });
+    // Change rootState and child state while the task is in-flight
+    rootAction("SetTheme", { theme: "dark" })(testKey);
+    childAction("SetCount", { count: 42 })(testKey);
 
-      // Change rootState
-      rootAction("SetTheme", { theme: "dark" })(testKey);
+    // Resolve the task — success callback should see current state, not stale snapshot
+    resolveTask?.(1);
 
-      // Execute same cached task thunk again - should see new rootState
-      return taskThunk2(testKey).then(() => {
-        expect(taskRootState).toEqual({ theme: "dark" });
-      });
+    return taskPromise.then(() => {
+      expect(taskRootState).toEqual({ theme: "dark" });
+      expect(taskState).toEqual({ count: 42 });
     });
   });
 });

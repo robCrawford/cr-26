@@ -37,8 +37,15 @@ export {
 /** @internal */
 export const componentRegistry = new Map<string, ComponentInstance>();
 
-const actionThunkCache = new Map<string, ActionThunk>();
-const taskThunkCache = new Map<string, TaskThunk>();
+/** @internal */
+export const actionThunkCache = new Map<string, ActionThunk>();
+/** @internal */
+export const taskThunkCache = new Map<string, TaskThunk>();
+
+// Tracks which cache keys were referenced during the current root render pass.
+// Entries not touched are evicted after patch to prevent unbounded growth from
+// dynamic action/task data payloads.
+const activeThunkKeys = new Set<string>();
 
 // The root component's type is not known until `renderComponent()`
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,6 +70,7 @@ function resetAppState(): void {
   componentRegistry.clear();
   actionThunkCache.clear();
   taskThunkCache.clear();
+  activeThunkKeys.clear();
 
   rootAction = undefined;
   rootTask = undefined;
@@ -90,6 +98,7 @@ function createCacheKey(id: string, name: string, data: unknown): string {
 // Action thunk creator with memoization
 function createActionThunk(componentId: string, actionName: string, data: unknown): ActionThunk {
   const cacheKey = createCacheKey(componentId, actionName, data);
+  activeThunkKeys.add(cacheKey);
 
   const cached = actionThunkCache.get(cacheKey);
   if (cached) {
@@ -122,6 +131,7 @@ function createActionThunk(componentId: string, actionName: string, data: unknow
 // Task thunk creator with memoization
 function createTaskThunk(componentId: string, taskName: string, data: unknown): TaskThunk {
   const cacheKey = createCacheKey(componentId, taskName, data);
+  activeThunkKeys.add(cacheKey);
 
   const cached = taskThunkCache.get(cacheKey);
   if (cached) {
@@ -214,7 +224,7 @@ function performTask(
   taskName: string,
   data: unknown
 ): Promise<Next | undefined> {
-  const { config, state, props, id } = instance;
+  const { config, id } = instance;
   const tasks = config.tasks;
 
   if (!tasks?.[taskName]) {
@@ -225,15 +235,15 @@ function performTask(
   const runSuccess = (result: unknown): Next | undefined =>
     success?.(result, {
       id,
-      props: props ?? {},
-      state: state ?? {},
+      props: instance.props ?? {},
+      state: instance.state ?? {},
       rootState: rootState ?? {}
     });
   const runFailure = (err: unknown): Next | undefined =>
     failure?.(err, {
       id,
-      props: props ?? {},
-      state: state ?? {},
+      props: instance.props ?? {},
+      state: instance.state ?? {},
       rootState: rootState ?? {}
     });
 
@@ -309,6 +319,7 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
     // execution (e.g. newly-mounted children relaying init state upward) are detected.
     if (isRenderRoot) {
       stateChangedDuringRender = false;
+      activeThunkKeys.clear();
     }
 
     log.render(instance.id, instance.props);
@@ -330,6 +341,7 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
       // so the DOM reflects the settled state in a single sync patch.
       while (stateChangedDuringRender) {
         stateChangedDuringRender = false;
+        activeThunkKeys.clear();
         Array.from(componentRegistry.values()).forEach((inst) => {
           inst.inCurrentRender = false;
         });
@@ -357,6 +369,19 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
       Array.from(componentRegistry.values()).forEach((inst) => {
         inst.inCurrentRender = false;
       });
+
+      // Evict thunk cache entries not referenced during this render pass
+      actionThunkCache.forEach((_, key) => {
+        if (!activeThunkKeys.has(key)) {
+          actionThunkCache.delete(key);
+        }
+      });
+      taskThunkCache.forEach((_, key) => {
+        if (!activeThunkKeys.has(key)) {
+          taskThunkCache.delete(key);
+        }
+      });
+      activeThunkKeys.clear();
     }
 
     setCleanup(instance);
@@ -571,26 +596,22 @@ function isThunk(next: Next): next is ActionThunk | TaskThunk {
   return false;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null &&
-  typeof value === "object" &&
-  (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+const isFreezable = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Object.isFrozen(value);
+
+function freezeRecursive(value: unknown): void {
+  if (isFreezable(value)) {
+    Object.freeze(value);
+    Object.getOwnPropertyNames(value).forEach((p: string) => {
+      freezeRecursive(value[p]);
+    });
+  }
+}
 
 const deepFreeze =
   process.env.NODE_ENV !== "production"
     ? <TObject extends Record<string, unknown>>(o?: TObject | null): TObject | undefined | null => {
-        if (o) {
-          Object.freeze(o);
-          Object.getOwnPropertyNames(o).forEach((p: string) => {
-            if (
-              Object.prototype.hasOwnProperty.call(o, p) &&
-              isRecord(o[p]) &&
-              !Object.isFrozen(o[p])
-            ) {
-              deepFreeze(o[p]);
-            }
-          });
-        }
+        freezeRecursive(o);
         return o;
       }
     : <T>(o?: T): T | undefined => o;

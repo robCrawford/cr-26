@@ -1,11 +1,21 @@
 import { vi } from "vitest";
-import { component, renderComponent, _setTestKey, html, VNode, withEventOptions } from "./cr-26";
+import {
+  component,
+  renderComponent,
+  _setTestKey,
+  html,
+  VNode,
+  withEventOptions,
+  actionThunkCache
+} from "./cr-26";
 import * as vdom from "./vdom";
+import { log } from "./log";
 import { ActionHandler, ActionThunk, Context, GetActionThunk } from "./cr-26.types";
 import { componentTest } from "./component-test";
 const { div } = html;
 
 const patchSpy = vi.spyOn(vdom, "patch");
+const renderSpy = vi.spyOn(log, "render");
 const testKey = _setTestKey({});
 
 describe("cr-26", () => {
@@ -21,12 +31,13 @@ describe("cr-26", () => {
 
   beforeEach(() => {
     patchSpy.mockClear();
+    renderSpy.mockClear();
 
     // Set up DOM element for patching
     document.body.innerHTML = "";
   });
 
-  it("should patch once following a chain of actions", () => {
+  it("should render and patch once following a chain of actions", () => {
     const numTestActions = 20;
 
     const id = getId();
@@ -66,14 +77,16 @@ describe("cr-26", () => {
     document.body.appendChild(container);
     vdom.patch(container, initialVnode);
 
-    patchSpy.mockClear(); // Clear the initial patch call
+    patchSpy.mockClear(); // Clear the initial render and patch
+    renderSpy.mockClear();
     action("Increment1")(testKey);
-    logResult(state.count, patchSpy.mock.calls.length);
+    logResult(state.count, renderSpy.mock.calls.length, patchSpy.mock.calls.length);
     expect(state.count).toBe(numTestActions);
+    expect(renderSpy).toHaveBeenCalledTimes(1);
     expect(patchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("should patch once following an array of actions", () => {
+  it("should render and patch once following an array of actions", () => {
     const numTestActions = 20;
 
     const id = getId();
@@ -113,14 +126,16 @@ describe("cr-26", () => {
     document.body.appendChild(container);
     vdom.patch(container, initialVnode);
 
-    patchSpy.mockClear(); // Clear the initial patch call
+    patchSpy.mockClear(); // Clear the initial render and patch
+    renderSpy.mockClear();
     action("Increment")(testKey);
-    logResult(state.count, patchSpy.mock.calls.length);
+    logResult(state.count, renderSpy.mock.calls.length, patchSpy.mock.calls.length);
     expect(state.count).toBe(numTestActions);
+    expect(renderSpy).toHaveBeenCalledTimes(1);
     expect(patchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("should patch twice when a chain of actions contains a promise", () => {
+  it("should render and patch twice when a chain of actions contains a promise", () => {
     const numTestActions = 20;
     return new Promise<void>((resolve) => {
       runActionsWithPromise(numTestActions, 2, resolve);
@@ -129,7 +144,7 @@ describe("cr-26", () => {
     });
   });
 
-  it("should patch once when initial action chain contains a promise", () => {
+  it("should render and patch once when initial action chain contains a promise", () => {
     const numTestActions = 20;
     return new Promise<void>((resolve) => {
       runActionsWithPromise(numTestActions, 1, resolve, "Increment1"); // 1 patch after promise
@@ -167,8 +182,9 @@ describe("cr-26", () => {
         const newState = { ...state, count: state.count + 1 };
         setTimeout(() => {
           // After last action has been processed
-          logResult(newState.count, patchSpy.mock.calls.length);
+          logResult(newState.count, renderSpy.mock.calls.length, patchSpy.mock.calls.length);
           expect(newState.count).toBe(numTestActions);
+          expect(renderSpy).toHaveBeenCalledTimes(expectedPatchCount);
           expect(patchSpy).toHaveBeenCalledTimes(expectedPatchCount);
           done();
         });
@@ -204,10 +220,11 @@ describe("cr-26", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     vdom.patch(container, initialVnode);
-    patchSpy.mockClear(); // Clear the initial patch call
+    patchSpy.mockClear(); // Clear the initial render and patch
+    renderSpy.mockClear();
   }
 
-  it("should patch twice when a promise returns an array of actions", () => {
+  it("should render and patch twice when a promise returns an array of actions", () => {
     return new Promise<void>((resolve) => {
       const id = getId();
       const initialVnode = renderComponent<{
@@ -235,8 +252,9 @@ describe("cr-26", () => {
               const newState = { ...ctx.state, count: ctx.state.count + 1 };
               setTimeout(() => {
                 // After last action has been processed
-                logResult(newState.count, patchSpy.mock.calls.length);
+                logResult(newState.count, renderSpy.mock.calls.length, patchSpy.mock.calls.length);
                 expect(newState.count).toBe(3);
+                expect(renderSpy).toHaveBeenCalledTimes(2);
                 expect(patchSpy).toHaveBeenCalledTimes(2);
                 resolve();
               });
@@ -260,31 +278,34 @@ describe("cr-26", () => {
       document.body.appendChild(container);
       vdom.patch(container, initialVnode);
 
-      patchSpy.mockClear(); // Clear the initial patch call
+      patchSpy.mockClear(); // Clear the initial render and patch
+      renderSpy.mockClear();
       action("Increment1")(testKey);
     });
   });
 
-  it("should patch once following a mix of action arrays and chains", () => {
+  it("should render and patch once following a mix of action arrays and chains", () => {
     const numTestActions = 20; // Must be even due to `i % 2`
 
     expect(patchSpy).not.toHaveBeenCalled();
     runMixedActions(numTestActions);
     action("IncrementA2-Init")(testKey);
 
-    logResult(state.count, patchSpy.mock.calls.length);
+    logResult(state.count, renderSpy.mock.calls.length, patchSpy.mock.calls.length);
     expect(state.count).toBe(getMixedActionsIncr(numTestActions));
+    expect(renderSpy).toHaveBeenCalledTimes(1);
     expect(patchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("should not patch when initial action is a mix of arrays and chains", () => {
+  it("should not render or patch when initial action is a mix of arrays and chains", () => {
     const numTestActions = 20; // Must be even due to `i % 2`
 
     expect(patchSpy).not.toHaveBeenCalled();
     runMixedActions(numTestActions, "IncrementA2-Init");
 
-    logResult(state.count, patchSpy.mock.calls.length);
+    logResult(state.count, renderSpy.mock.calls.length, patchSpy.mock.calls.length);
     expect(state.count).toBe(getMixedActionsIncr(numTestActions));
+    expect(renderSpy).not.toHaveBeenCalled();
     expect(patchSpy).not.toHaveBeenCalled();
   });
 
@@ -378,7 +399,8 @@ describe("cr-26", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     vdom.patch(container, initialVnode);
-    patchSpy.mockClear(); // Clear the initial patch call
+    patchSpy.mockClear(); // Clear the initial render and patch
+    renderSpy.mockClear();
   }
 
   function getMixedActionsIncr(numTestActions: number) {
@@ -390,9 +412,9 @@ describe("cr-26", () => {
     return array2Incr;
   }
 
-  function logResult(numActions: number, patchCount: number) {
+  function logResult(numActions: number, renderCount: number, patchCount: number): void {
     console.log(
-      `Completed ${numActions} actions with ${patchCount} patch${patchCount === 1 ? "" : "es"}`
+      `Completed ${numActions} actions with ${renderCount} render${renderCount === 1 ? "" : "s"} and ${patchCount} patch${patchCount === 1 ? "" : "es"}`
     );
   }
 
@@ -515,6 +537,56 @@ describe("cr-26", () => {
       expect(preventDefaultSpy).toHaveBeenCalledOnce();
       expect(stopPropagationSpy).toHaveBeenCalledOnce();
       expect(stopImmediateSpy).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("thunk cache eviction", () => {
+    it("should not retain stale action thunk cache entries after re-render with new data", () => {
+      let selectedId = 0;
+      const id = getId();
+
+      const initialVnode = renderComponent<{
+        State: { selectedId: number };
+        ActionPayloads: { Select: { itemId: number } };
+      }>(id, ({ action: a }) => ({
+        state: () => ({ selectedId: 0 }),
+        actions: {
+          Select: ({ itemId }, { state }) => ({
+            state: { ...state, selectedId: itemId }
+          })
+        },
+        view: (ctx): VNode => {
+          selectedId = ctx.state.selectedId;
+          // Each render creates a thunk with a different data payload
+          a("Select", { itemId: selectedId + 1 });
+          return div(`#${ctx.id}`, `Selected: ${selectedId}`);
+        }
+      }));
+
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      vdom.patch(container, initialVnode);
+
+      const cacheEntriesForComponent = (): number =>
+        Array.from(actionThunkCache.keys()).filter((key) => key.startsWith(`${id}:`)).length;
+
+      // After initial render, one entry for Select:{itemId:1}
+      const initialEntries = cacheEntriesForComponent();
+
+      // Trigger multiple re-renders with different data payloads
+      for (let iter = 0; iter < 50; iter++) {
+        const actionThunk = actionThunkCache.get(
+          `${id}:Select:${JSON.stringify({ itemId: selectedId + 1 })}`
+        );
+        if (actionThunk) {
+          actionThunk(testKey);
+        }
+      }
+
+      // After 50 renders, each with a unique payload, stale entries should be cleaned up.
+      // Only thunks from the most recent render should remain.
+      const finalEntries = cacheEntriesForComponent();
+      expect(finalEntries).toBeLessThan(initialEntries + 50);
     });
   });
 
