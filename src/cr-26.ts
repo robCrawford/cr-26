@@ -519,7 +519,14 @@ function setCleanup(instance: ComponentInstance): void {
     return;
   }
 
+  const configDestroy = instance.config.destroy;
+
+  // setHook composes with any user-defined destroy hook already on the vnode
   setHook(instance.vnode, "destroy", () => {
+    if (configDestroy) {
+      configDestroy();
+    }
+
     const inst = componentRegistry.get(instance.id);
     if (inst && !inst.inCurrentRender) {
       componentRegistry.delete(instance.id);

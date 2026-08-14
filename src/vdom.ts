@@ -85,11 +85,25 @@ export const patch = init([
 
 export const html = hyperscriptHelpers(h);
 
-export function setHook(vnode: VNode, hookName: keyof Hooks, callback: () => void): void {
+export function setHook(vnode: VNode, hookName: keyof Hooks, callback: () => void): VNode {
   // See https://github.com/snabbdom/snabbdom#hooks
   if (vnode) {
     vnode.data = vnode.data || {};
     vnode.data.hook = vnode.data.hook || {};
-    vnode.data.hook[hookName] = callback;
+    const existing = vnode.data.hook[hookName];
+    if (existing) {
+      // Compose with any previously set hook on the same name.
+      // Hooks have varying arity (0–2 args) so we forward arguments dynamically.
+      const prev = existing;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
+      (vnode.data.hook[hookName] as any) = function (this: unknown): void {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
+        (prev as any).apply(this, arguments);
+        callback();
+      };
+    } else {
+      vnode.data.hook[hookName] = callback;
+    }
   }
+  return vnode;
 }

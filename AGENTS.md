@@ -199,7 +199,47 @@ See `examples/spa/src/app.ts` (SetDocTitle) and `examples/spa/src/components/cou
 
 ### External I/O Wiring
 
-Connect external events to root actions in `mount()` init callback. See `examples/spa/src/index.ts` for the complete pattern.
+**Root-level**: Connect external events to root actions in `mount()` init callback. See `examples/spa/src/index.ts` for the complete pattern.
+
+**Child components**: Use a task's `perform` to attach an event listener, passing an action thunk directly as the callback. Action thunks accept DOM Events, so `addEventListener(event, actionThunk)` works. Use `destroy` on the config to tear down the listener when the component unmounts:
+
+```typescript
+type Component = {
+  State: Readonly<{ scrollY: number }>;
+  ActionPayloads: Readonly<{
+    Init: undefined;
+    OnScroll: undefined;
+  }>;
+  TaskPayloads: Readonly<{
+    AttachScrollListener: undefined;
+  }>;
+};
+
+export const scrollTracker = component<Component>(({ action, task }) => ({
+  state: (): State => ({ scrollY: 0 }),
+  init: action("Init"),
+  destroy: () => {
+    window.removeEventListener("scroll", action("OnScroll"));
+  },
+  actions: {
+    Init: (_, { state }): { state: State; next: Next } => ({
+      state,
+      next: task("AttachScrollListener")
+    }),
+    OnScroll: (_, { state }): { state: State } => ({
+      state: { ...state, scrollY: window.scrollY }
+    })
+  },
+  tasks: {
+    AttachScrollListener: (): Task<void, unknown, State> => ({
+      perform: (): void => {
+        window.addEventListener("scroll", action("OnScroll"));
+      }
+    })
+  },
+  view: ({ id, state }): VNode => div(`#${id}`, `Scroll: ${state.scrollY}`)
+}));
+```
 
 ### Framework Events (Pub/Sub)
 
@@ -261,6 +301,47 @@ actions: {
     state: { ...state, loading: true },
     next: task("FetchUser", { id })
   });
+}
+```
+
+### ❌ Manual thunk invocation → ✅ Return as `next` or pass to `on:`
+
+Calling a thunk directly (e.g. `action("Name")()`) **throws** at runtime with `"#id "Name" cannot be invoked manually"`. This compiles fine but fails because the framework guards against it — thunks may only be invoked by the framework (via `next`) or by the DOM (via `on:` handlers).
+
+```typescript
+// WRONG — throws at runtime
+tasks: {
+  SetupPolling: (): Task<void, unknown, State> => ({
+    perform: (): void => {
+      setInterval(() => action("Refresh")(), 5000); // throws
+    }
+  })
+}
+
+// WRONG — throws at runtime
+tasks: {
+  ListenForScroll: (): Task<void, unknown, State> => ({
+    perform: (): void => {
+      window.addEventListener("scroll", () => action("OnScroll")()); // throws
+    }
+  })
+}
+
+// CORRECT — pass thunk directly as listener (thunks accept DOM Events)
+tasks: {
+  ListenForScroll: (): Task<void, unknown, State> => ({
+    perform: (): void => {
+      window.addEventListener("scroll", action("OnScroll")); // works
+    }
+  })
+}
+
+// CORRECT — return as next from an action or task callback
+actions: {
+  StartPolling: (_, { state }): { state: State; next: Next } => ({
+    state,
+    next: task("PollOnce")
+  })
 }
 ```
 
@@ -607,13 +688,17 @@ src/
 
 ### VDOM Lifecycle Hooks
 
-For third-party library integration only:
+Use `setHook` to attach lifecycle callbacks to vnodes for advanced use cases like third-party library integration. `setHook` returns the vnode for a fluent API. For cleanup on unmount, prefer the `destroy` config field instead.
 
 ```typescript
 import { setHook } from "cr-26";
-setHook(vnode, "insert", () => initializeChartLibrary(id));
-setHook(vnode, "destroy", () => cleanupChartLibrary(id));
+
+// Third-party library integration — setHook returns the vnode for inline use
+view: ({ id }): VNode =>
+  setHook(div(`#${id}`, "chart"), "insert", () => initializeChartLibrary(id))
 ```
+
+Multiple `setHook` calls on the same hook name compose automatically — each callback runs in the order it was added. The framework's own internal cleanup is always appended last, so `setHook(vnode, "destroy", ...)` is safe on the component's root vnode when needed.
 
 **Available hooks**: `init`, `create`, `insert`, `prepatch`, `update`, `postpatch`, `destroy`, `remove`
 
@@ -634,7 +719,7 @@ setHook(vnode, "destroy", () => cleanupChartLibrary(id));
 5. **Types are Readonly** - Props and State must be `Readonly<...>`
 6. **Reference equality optimization** - Framework uses `!==` to check state changes; return same reference to skip renders
 7. **Don't memo components with rootState** - They won't see changes
-8. **External events in mount init** - Wire routing/browser events there
+8. **External events** - Wire root-level events in `mount()` init; child components use task `perform` + `destroy` config for setup/teardown
 9. **Service functions for I/O** - Extract reusable I/O to services/
 10. **Test with componentTest** - Export Component type for type inference
 11. **Context in actions** - `props`, `state`, `rootState` non-optional; `event` optional

@@ -313,6 +313,90 @@ describe("Component Lifecycle & State Management", () => {
       expect(componentRegistry.has("grandchild")).toBe(false);
     });
 
+    it("should call config destroy callback on unmount", () => {
+      let parentAction: Function = () => {};
+      const destroyCallback = vi.fn();
+
+      const child = component<{
+        Props: Record<string, never>;
+      }>(() => ({
+        destroy: destroyCallback,
+        view: ({ id }) => div(`#${id}`, "child")
+      }));
+
+      const parent = component<{
+        Props: Record<string, never>;
+        State: { showChild: boolean };
+        ActionPayloads: { Toggle: undefined };
+      }>(({ action: a }) => {
+        parentAction = a;
+        return {
+          state: () => ({ showChild: true }),
+          actions: {
+            Toggle: (_, ctx) => {
+              const state = ctx?.state ?? { showChild: true };
+              return { state: { showChild: !state.showChild } };
+            }
+          },
+          view: (ctx) =>
+            div(`#${ctx.id}`, (ctx.state?.showChild ?? true) ? [child("#child", {})] : [])
+        };
+      });
+
+      mount({ app: parent, props: {} });
+      expect(destroyCallback).not.toHaveBeenCalled();
+
+      // Unmount child — should call destroy AND framework cleanup
+      parentAction("Toggle")(testKey);
+
+      expect(destroyCallback).toHaveBeenCalledOnce();
+      expect(componentRegistry.has("child")).toBe(false);
+    });
+
+    it("should compose user-defined destroy hooks with framework cleanup", () => {
+      let parentAction: Function = () => {};
+      const userDestroyHook = vi.fn();
+
+      const child = component<{
+        Props: Record<string, never>;
+      }>(() => ({
+        view: ({ id }) => {
+          const vnode = div(`#${id}`, "child");
+          vdom.setHook(vnode, "destroy", userDestroyHook);
+          return vnode;
+        }
+      }));
+
+      const parent = component<{
+        Props: Record<string, never>;
+        State: { showChild: boolean };
+        ActionPayloads: { Toggle: undefined };
+      }>(({ action: a }) => {
+        parentAction = a;
+        return {
+          state: () => ({ showChild: true }),
+          actions: {
+            Toggle: (_, ctx) => {
+              const state = ctx?.state ?? { showChild: true };
+              return { state: { showChild: !state.showChild } };
+            }
+          },
+          view: (ctx) =>
+            div(`#${ctx.id}`, (ctx.state?.showChild ?? true) ? [child("#child", {})] : [])
+        };
+      });
+
+      mount({ app: parent, props: {} });
+      expect(componentRegistry.has("child")).toBe(true);
+      expect(userDestroyHook).not.toHaveBeenCalled();
+
+      // Unmount child — should call user hook AND framework cleanup
+      parentAction("Toggle")(testKey);
+
+      expect(userDestroyHook).toHaveBeenCalledOnce();
+      expect(componentRegistry.has("child")).toBe(false);
+    });
+
     it("should reset inCurrentRender flag after patch", () => {
       let action: Function = () => {};
 

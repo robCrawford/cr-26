@@ -366,6 +366,18 @@ init: [action("A"), task("B")]
 
 ---
 
+### `destroy`
+
+An optional callback invoked when the component unmounts. Use for removing event listeners, disconnecting observers, and cleaning up subscriptions.
+
+```typescript
+destroy: () => void
+```
+
+No inputs. No return value.
+
+---
+
 ### Action handlers
 
 Each key in `actions` is a pure function that returns new state and an optional next thunk chain.

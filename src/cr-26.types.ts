@@ -139,6 +139,7 @@ export type InternalConfig = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   state?: (...args: any[]) => any;
   init?: Next;
+  destroy?: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actions?: Record<string, (...args: any[]) => any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -175,6 +176,8 @@ export type Config<TComponent extends Component = Component> = StateConfig<TComp
    * Created with `action(...)` or `task(...)`.
    */
   init?: Next;
+  /** Callback invoked when this component unmounts. Use for removing listeners, observers, and subscriptions. */
+  destroy?: () => void;
   /** Map of pure, synchronous action handler functions keyed by action name. */
   actions?: {
     [TKey in keyof TComponent["ActionPayloads"]]: ActionHandler<

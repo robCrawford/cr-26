@@ -177,6 +177,22 @@ describe("setHook", () => {
     expect(vnode.data?.hook?.destroy).toBe(callback);
   });
 
+  it("returns the vnode for fluent chaining", () => {
+    const vnode = ul(".list");
+    const result = setHook(vnode, "insert", vi.fn());
+    expect(result).toBe(vnode);
+  });
+
+  it("composes with an existing hook on the same name", () => {
+    const callOrder: string[] = [];
+    const vnode = ul(".list");
+    setHook(vnode, "destroy", () => callOrder.push("first"));
+    setHook(vnode, "destroy", () => callOrder.push("second"));
+    // Invoke the composed hook
+    vnode.data?.hook?.destroy?.();
+    expect(callOrder).toEqual(["first", "second"]);
+  });
+
   it("does not throw for a falsy vnode", () => {
     // @ts-expect-error test null
     expect(() => setHook(null, "insert", vi.fn())).not.toThrow();
