@@ -19,15 +19,15 @@ TypeScript components made with pure functions
 
 # Components
 
-### Actions and tasks
+### Actions, tasks, and subscriptions
 
-`component(...)` takes a function which receives `action` and `task` functions.
+`component(...)` takes a function which receives `action`, `task`, and `subscription` functions.
 
 These are called to create thunks for the framework to execute — thunks are passed as values and should not be called directly:
 
 ```JavaScript
 export default component(
-  ({ action, task, rootAction, rootTask }) => ({
+  ({ action, task, subscription, rootAction, rootTask }) => ({
     // Initial action
     init: action( "ShowMessage", { text: "Hello World!" } ),
   })
@@ -36,7 +36,9 @@ export default component(
 
 When an action thunk runs, its handler returns new state and any next actions/tasks *(see `Hello World` below)*.
 
-Task thunks provide handlers for effects and async operations that may fail.
+Task thunks provide handlers for one-shot effects and async operations that may fail.
+
+Subscription thunks provide persistent listeners (WebSockets, Firestore, SSE) that push multiple events over time via a component-scoped `runAction`.
 
 ### Props and state
 
@@ -200,7 +202,7 @@ Detailed lifecycle logging is also available in the browser console.
 
 ## Unit tests
 
-For unit testing, `actionTest`/`taskTest` utilities allow testing without mocks, by returning plain data:
+For unit testing, `actionTest`/`taskTest`/`subscriptionTest` utilities allow testing without mocks, by returning plain data:
 
 ```JavaScript
 import { componentTest, expectOne } from "cr-26/test";
@@ -356,12 +358,13 @@ Returns: initial `State` object.
 
 ### `init`
 
-An action or task thunk (or array of thunks) to run when the component first mounts. Created with `action(...)` or `task(...)`.
+An action, task, or subscription thunk (or array of thunks) to run when the component first mounts.
 
 ```typescript
 init: action("ActionName", payload)
 init: task("TaskName", payload)
-init: [action("A"), task("B")]
+init: subscription("SubscriptionName", payload)
+init: [action("A"), task("B"), subscription("C")]
 ```
 
 ---
@@ -398,7 +401,7 @@ actions: {
 | `ctx.event` | `NormalizedEvent \| undefined` | DOM event — only present when the action was triggered by a DOM event handler |
 
 Returns: `{ state: State }` or `{ state: State; next: Next }`.
-`Next` is an `ActionThunk`, `TaskThunk`, or an array of either.
+`Next` is an `ActionThunk`, `TaskThunk`, `SubscriptionThunk`, or an array of any combination.
 
 ---
 
@@ -462,6 +465,53 @@ failure?: (error: DeepPartial<TError>, ctx: Context) => Next
 
 ---
 
+### Subscription handlers
+
+Each key in `subscriptions` is a function that receives the subscription payload and returns a `Subscription` object with a `connect` method. Use for persistent event sources that push multiple events over time.
+
+```typescript
+subscriptions: {
+  SubscriptionName: (data: Payload) => Subscription<ActionPayloads>
+}
+```
+
+| Parameter | Type      | Description                                              |
+| --------- | --------- | -------------------------------------------------------- |
+| `data`    | `Payload` | The payload passed to `subscription("SubscriptionName", ...)` |
+
+Returns a `Subscription` object — see below.
+
+#### `connect`
+
+Receives a component-scoped `runAction` and returns a cleanup function. The cleanup is called automatically on unmount or when the same subscription is re-triggered.
+
+```typescript
+connect: (runAction: RunAction<ActionPayloads>) => () => void
+```
+
+| Parameter   | Type        | Description                                          |
+| ----------- | ----------- | ---------------------------------------------------- |
+| `runAction` | `RunAction` | Dispatches actions on the component that owns the subscription. Silently no-ops after unmount. |
+
+Returns a cleanup function that tears down the listener.
+
+```typescript
+// WebSocket example — persistent listener that pushes events into local state
+subscriptions: {
+  MessageFeed: ({ url }) => ({
+    connect: (runAction) => {
+      const ws = new WebSocket(url);
+      ws.onmessage = (event) => {
+        runAction("OnMessage", { text: event.data });
+      };
+      return () => ws.close();
+    }
+  })
+}
+```
+
+---
+
 ### `view`
 
 Renders the component to a virtual DOM node.
@@ -487,7 +537,7 @@ Returns: a `VNode` (Snabbdom virtual DOM node).
 
 - **Component type patterns** - The `Component` type is foundational and required for every component
 - **Reference implementation** - Study `examples/spa/` for canonical patterns
-- **Actions vs Tasks** - Actions are pure (no I/O), tasks contain all side effects
+- **Actions vs Tasks vs Subscriptions** - Actions are pure, tasks are one-shot effects, subscriptions are persistent listeners
 - **State management** - Immutability patterns and reference equality optimizations
 - **Testing patterns** - Use `componentTest` from `cr-26/test`
 - **Anti-patterns** - Common mistakes to avoid (mutations, async actions, side effects in actions)

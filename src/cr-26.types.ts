@@ -1,9 +1,10 @@
 import { VNode } from "./vdom";
 
-/** Discriminates between action and task thunks at runtime. */
+/** Discriminates between action, task, and subscription thunks at runtime. */
 export enum ThunkType {
   Action,
-  Task
+  Task,
+  Subscription
 }
 
 /**
@@ -25,8 +26,10 @@ export type GetActionThunk<TActions> = <TKey extends keyof TActions>(
 ) => ActionThunk;
 
 /**
- * Immediately invokes a root action by name. Provided via the `init` callback on {@link mount}
- * for wiring external events (e.g. routing) to root actions after the app has mounted.
+ * Immediately invokes an action by name. Provided via the `init` callback on {@link mount}
+ * for wiring external events (e.g. routing) to root actions, and via the `connect` callback
+ * on {@link Subscription} for dispatching component-local actions from non-DOM event sources
+ * (e.g. Firestore listeners, WebSocket messages).
  * Unlike `action(...)`, this is not a deferred thunk — it runs the action directly.
  */
 export type RunAction<TActions> = (actionName: keyof TActions, data?: ValueOf<TActions>) => void;
@@ -49,10 +52,35 @@ export type TaskThunk = {
 export type GetTaskThunk<TTasks> = (taskName: keyof TTasks, data?: ValueOf<TTasks>) => TaskThunk;
 
 /**
+ * A deferred subscription call. Return as `next` from an action handler to set up a
+ * persistent listener. The framework invokes it — pass it as a value, don't call it.
+ */
+export type SubscriptionThunk = {
+  (data?: Record<string, unknown> | NormalizedEvent): void;
+  type: ThunkType.Subscription;
+  subscriptionName: string;
+  subscriptionData?: unknown;
+};
+
+/**
+ * The `subscription(name, data?)` function received inside `component(...)`.
+ * Creates a {@link SubscriptionThunk} for the named subscription.
+ */
+export type GetSubscriptionThunk<TSubscriptions> = (
+  subscriptionName: keyof TSubscriptions,
+  data?: ValueOf<TSubscriptions>
+) => SubscriptionThunk;
+
+/**
  * The value an action handler may return in its `next` field to chain further work.
  * May be a single thunk, an array of thunks, or `undefined` for no further operations.
  */
-export type Next = undefined | ActionThunk | TaskThunk | (ActionThunk | TaskThunk)[];
+export type Next =
+  | undefined
+  | ActionThunk
+  | TaskThunk
+  | SubscriptionThunk
+  | (ActionThunk | TaskThunk | SubscriptionThunk)[];
 
 /**
  * Context object passed to action handlers, task `success`/`failure` callbacks, and the `view`
@@ -111,6 +139,28 @@ export type Task<TResult, TProps, TState, TRootState = unknown, TError = unknown
 };
 
 /**
+ * The type of a single entry in the `subscriptions` map.
+ * Returns a {@link Subscription} object describing a persistent listener.
+ */
+export type SubscriptionHandler<TData, TActionPayloads> = (
+  data: TData
+) => Subscription<TActionPayloads>;
+
+/**
+ * Describes a persistent event source (e.g. WebSocket, Firestore listener, setInterval).
+ * Unlike a {@link Task}, a subscription fires repeatedly and has framework-managed cleanup.
+ */
+export type Subscription<TActionPayloads = Record<string, unknown>> = {
+  /**
+   * Sets up the persistent listener. Receives a {@link RunAction} function scoped to the
+   * component's own actions for dispatching events from the external source.
+   * Returns a cleanup function that the framework calls automatically on unmount or
+   * when the subscription is replaced.
+   */
+  connect: (runAction: RunAction<TActionPayloads>) => () => void;
+};
+
+/**
  * The type parameter for `component<Component>(...)`.
  * All fields are optional — only include what the component uses.
  */
@@ -123,6 +173,8 @@ export type Component = {
   ActionPayloads?: Record<string, unknown>;
   /** Payload types for local tasks, keyed by task name. Use `undefined` for no-payload tasks. */
   TaskPayloads?: Record<string, unknown>;
+  /** Payload types for local subscriptions, keyed by subscription name. Use `undefined` for no-payload subscriptions. */
+  SubscriptionPayloads?: Record<string, unknown>;
   /** Root component state shape. Required to access `ctx.rootState`. */
   RootState?: Record<string, unknown>;
   /** Payload types for root actions. Required to call `rootAction(...)`. */
@@ -144,6 +196,8 @@ export type InternalConfig = {
   actions?: Record<string, (...args: any[]) => any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tasks?: Record<string, (...args: any[]) => any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  subscriptions?: Record<string, (...args: any[]) => any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   view: (...args: any[]) => VNode;
 };
@@ -176,7 +230,7 @@ export type Config<TComponent extends Component = Component> = StateConfig<TComp
    * Created with `action(...)` or `task(...)`.
    */
   init?: Next;
-  /** Callback invoked when this component unmounts. Use for removing listeners, observers, and subscriptions. */
+  /** Callback invoked when this component unmounts. Use for removing DOM event listeners added via task perform. */
   destroy?: () => void;
   /** Map of pure, synchronous action handler functions keyed by action name. */
   actions?: {
@@ -196,20 +250,29 @@ export type Config<TComponent extends Component = Component> = StateConfig<TComp
       TComponent["RootState"]
     >;
   };
+  /** Map of subscription handler functions keyed by subscription name. */
+  subscriptions?: {
+    [TKey in keyof TComponent["SubscriptionPayloads"]]: SubscriptionHandler<
+      TComponent["SubscriptionPayloads"][TKey],
+      TComponent["ActionPayloads"]
+    >;
+  };
   /** Renders the component to a virtual DOM node. Called on every render cycle. */
   view: (ctx: Context<TComponent["Props"], TComponent["State"], TComponent["RootState"]>) => VNode;
 };
 
 /**
  * The function signature of the callback passed to `component(...)`.
- * Receives `action`, `task`, `rootAction`, and `rootTask` factory functions and returns a
- * {@link Config}.
+ * Receives `action`, `task`, `subscription`, `rootAction`, and `rootTask` factory functions
+ * and returns a {@link Config}.
  */
 export type GetConfig<TComponent extends Component> = (fns: {
   /** Creates an {@link ActionThunk} for a local action. */
   action: GetActionThunk<TComponent["ActionPayloads"]>;
   /** Creates a {@link TaskThunk} for a local task. */
   task: GetTaskThunk<TComponent["TaskPayloads"]>;
+  /** Creates a {@link SubscriptionThunk} for a local subscription. */
+  subscription: GetSubscriptionThunk<TComponent["SubscriptionPayloads"]>;
   /** Creates an {@link ActionThunk} for a root action. */
   rootAction: GetActionThunk<TComponent["RootActionPayloads"]>;
   /** Creates a {@link TaskThunk} for a root task. */

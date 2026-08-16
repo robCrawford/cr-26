@@ -1019,4 +1019,199 @@ describe("Component Lifecycle & State Management", () => {
       ]);
     });
   });
+
+  describe("Subscriptions", () => {
+    it("should dispatch component-local actions via runAction", () => {
+      let capturedRunAction: Function = () => {};
+
+      const comp = component<{
+        Props: Record<string, never>;
+        State: { value: string };
+        ActionPayloads: { Init: undefined; SetValue: { value: string } };
+        SubscriptionPayloads: { Feed: undefined };
+      }>(({ action: a, subscription: s }) => ({
+        state: () => ({ value: "" }),
+        init: a("Init"),
+        actions: {
+          Init: (_, { state }) => ({
+            state,
+            next: s("Feed")
+          }),
+          SetValue: ({ value }, { state }) => ({
+            state: { ...state, value }
+          })
+        },
+        subscriptions: {
+          Feed: () => ({
+            connect: (runAction) => {
+              capturedRunAction = runAction;
+              return () => {};
+            }
+          })
+        },
+        view: (ctx) => div(`#${ctx.id}`, ctx.state?.value ?? "")
+      }));
+
+      mount({ app: comp, props: {} });
+
+      const instance = componentRegistry.get("app");
+      expect(instance?.state).toEqual({ value: "" });
+
+      capturedRunAction("SetValue", { value: "from-websocket" });
+      expect(instance?.state).toEqual({ value: "from-websocket" });
+    });
+
+    it("should dispatch multiple actions from the same subscription", () => {
+      let capturedRunAction: Function = () => {};
+
+      const comp = component<{
+        Props: Record<string, never>;
+        State: { count: number; lastEvent: string };
+        ActionPayloads: {
+          Init: undefined;
+          Increment: undefined;
+          SetEvent: { name: string };
+        };
+        SubscriptionPayloads: { Listen: undefined };
+      }>(({ action: a, subscription: s }) => ({
+        state: () => ({ count: 0, lastEvent: "" }),
+        init: a("Init"),
+        actions: {
+          Init: (_, { state }) => ({ state, next: s("Listen") }),
+          Increment: (_, { state }) => ({
+            state: { ...state, count: state.count + 1 }
+          }),
+          SetEvent: ({ name }, { state }) => ({
+            state: { ...state, lastEvent: name }
+          })
+        },
+        subscriptions: {
+          Listen: () => ({
+            connect: (runAction) => {
+              capturedRunAction = runAction;
+              return () => {};
+            }
+          })
+        },
+        view: (ctx) => div(`#${ctx.id}`, `${ctx.state?.count ?? 0}`)
+      }));
+
+      mount({ app: comp, props: {} });
+
+      capturedRunAction("Increment");
+      capturedRunAction("Increment");
+      capturedRunAction("SetEvent", { name: "tick" });
+
+      const instance = componentRegistry.get("app");
+      expect(instance?.state).toEqual({ count: 2, lastEvent: "tick" });
+    });
+
+    it("should call cleanup on component unmount", () => {
+      const cleanupSpy = vi.fn();
+      let capturedRunAction: Function = () => {};
+
+      const child = component<{
+        Props: Record<string, never>;
+        State: { value: number };
+        ActionPayloads: { Init: undefined; Update: { value: number } };
+        SubscriptionPayloads: { Stream: undefined };
+      }>(({ action: a, subscription: s }) => ({
+        state: () => ({ value: 0 }),
+        init: a("Init"),
+        actions: {
+          Init: (_, { state }) => ({ state, next: s("Stream") }),
+          Update: ({ value }, { state }) => ({ state: { ...state, value } })
+        },
+        subscriptions: {
+          Stream: () => ({
+            connect: (runAction) => {
+              capturedRunAction = runAction;
+              return cleanupSpy;
+            }
+          })
+        },
+        view: (ctx) => div(`#${ctx.id}`, `${ctx.state?.value ?? 0}`)
+      }));
+
+      const parent = component<{
+        Props: Record<string, never>;
+        State: { showChild: boolean };
+        ActionPayloads: { HideChild: undefined };
+      }>(() => ({
+        state: () => ({ showChild: true }),
+        actions: {
+          HideChild: (_, { state }) => ({ state: { ...state, showChild: false } })
+        },
+        view: (ctx) => div(`#${ctx.id}`, ctx.state?.showChild ? child("#child", {}) : "-")
+      }));
+
+      let parentActionRef: Function = () => {};
+      mount({
+        app: parent,
+        props: {},
+        init: (runRootAction) => {
+          parentActionRef = runRootAction;
+        }
+      });
+
+      expect(componentRegistry.has("child")).toBe(true);
+      expect(cleanupSpy).not.toHaveBeenCalled();
+
+      // Unmount the child — cleanup should be called automatically
+      parentActionRef("HideChild");
+      expect(componentRegistry.has("child")).toBe(false);
+      expect(cleanupSpy).toHaveBeenCalledTimes(1);
+
+      // runAction from the old subscription should not throw
+      expect(() => capturedRunAction("Update", { value: 99 })).not.toThrow();
+    });
+
+    it("should tear down old subscription before replacing", () => {
+      const firstCleanup = vi.fn();
+      const secondCleanup = vi.fn();
+      const cleanups = [firstCleanup, secondCleanup];
+      let connectCount = 0;
+
+      const comp = component<{
+        Props: Record<string, never>;
+        State: { value: string };
+        ActionPayloads: { Reconnect: undefined; SetValue: { value: string } };
+        SubscriptionPayloads: { Feed: undefined };
+      }>(({ subscription: s }) => ({
+        state: () => ({ value: "" }),
+        init: s("Feed"),
+        actions: {
+          Reconnect: (_, { state }) => ({ state, next: s("Feed") }),
+          SetValue: ({ value }, { state }) => ({ state: { ...state, value } })
+        },
+        subscriptions: {
+          Feed: () => ({
+            connect: () => {
+              return cleanups[connectCount++];
+            }
+          })
+        },
+        view: (ctx) => div(`#${ctx.id}`, ctx.state?.value ?? "")
+      }));
+
+      let rootActionRef: Function = () => {};
+      mount({
+        app: comp,
+        props: {},
+        init: (runRootAction) => {
+          rootActionRef = runRootAction;
+        }
+      });
+
+      // First subscription connected via init
+      expect(connectCount).toBe(1);
+      expect(firstCleanup).not.toHaveBeenCalled();
+
+      // Re-subscribe — old cleanup runs, then new connect runs
+      rootActionRef("Reconnect");
+      expect(firstCleanup).toHaveBeenCalledTimes(1);
+      expect(connectCount).toBe(2);
+      expect(secondCleanup).not.toHaveBeenCalled();
+    });
+  });
 });

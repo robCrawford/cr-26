@@ -267,6 +267,23 @@ export const log = {
       );
     }
   },
+  subscriptionConnect(id: string, label: string): void {
+    // Send subscription connect to Redux DevTools
+    if (devToolsConnection) {
+      devToolsConnection.send(
+        {
+          type: `${id}/[Subscription] ${label}/connect`,
+          meta: { isSubscription: true, status: "connect" }
+        },
+        getAggregatedState()
+      );
+    }
+
+    // Console logging
+    if (logEnabled) {
+      console.log(`%cSubscription "${label}" connected`, "color: #8d8");
+    }
+  },
   manualError(id: string, name: string): void {
     throw Error(`#${id} "${name}" cannot be invoked manually`);
   }

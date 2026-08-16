@@ -30,8 +30,22 @@ API for unit testing components
   const { perform, success, failure } = taskTest("ValidateCount", { count: 0 });
   const { name, data } = success({ text: "Test" });
   ```
+
+- Test a subscription
+  ```
+  const { connect } = subscriptionTest("Calendar", { calendarId: "abc" });
+  const cleanup = connect(mockRunAction);
+  ```
 */
-import { ActionThunk, Component, Config, Context, GetConfig, ThunkType } from "./cr-26.types";
+import {
+  ActionThunk,
+  Component,
+  Config,
+  Context,
+  GetConfig,
+  Subscription,
+  ThunkType
+} from "./cr-26.types";
 
 export type ActionTestOptions<TState, TRootState> = {
   // Override the component id for this test (defaults to "")
@@ -49,6 +63,10 @@ export type NextData = {
   data?: Record<string, unknown>;
 };
 
+export type SubscriptionTestSpec<TActionPayloads = Record<string, unknown>> = {
+  connect: Subscription<TActionPayloads>["connect"];
+};
+
 export type ComponentTestApi<
   TComponent extends Component,
   TState = Record<string, unknown>,
@@ -62,6 +80,7 @@ export type ComponentTestApi<
     options?: ActionTestOptions<TActionState, TRootState>
   ) => { state: TActionState; next?: NextData | NextData[] };
   taskTest: (name: string, data?: Record<string, unknown>) => TaskTestSpec;
+  subscriptionTest: (name: string, data?: Record<string, unknown>) => SubscriptionTestSpec;
 };
 
 export type TaskTestSpec<
@@ -96,6 +115,8 @@ export const componentTest = <TComponent extends Component>(
     action: nextToData,
     // @ts-expect-error test api
     task: nextToData,
+    // @ts-expect-error test api
+    subscription: nextToData,
     // @ts-expect-error test api
     rootAction: nextToData,
     // @ts-expect-error test api
@@ -133,6 +154,14 @@ export const componentTest = <TComponent extends Component>(
 
       // Returns task spec
       return tasks[name]?.(data);
+    },
+
+    // Get subscription spec for testing `connect` output
+    subscriptionTest(name: string, data?: Record<string, unknown>): SubscriptionTestSpec {
+      const subscriptions: TestHandlers = config.subscriptions || {};
+
+      // Returns subscription spec
+      return subscriptions[name]?.(data);
     }
   };
 };

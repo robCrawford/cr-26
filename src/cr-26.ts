@@ -8,10 +8,12 @@ import {
   EventOptions,
   GetActionThunk,
   GetConfig,
+  GetSubscriptionThunk,
   GetTaskThunk,
   Next,
   NormalizedEvent,
   RunAction,
+  SubscriptionThunk,
   TaskThunk,
   ThunkType
 } from "./cr-26.types";
@@ -24,10 +26,14 @@ export {
   EventOptions,
   GetActionThunk,
   GetConfig,
+  GetSubscriptionThunk,
   GetTaskThunk,
   Next,
   NormalizedEvent,
   RunAction,
+  Subscription,
+  SubscriptionHandler,
+  SubscriptionThunk,
   Task,
   TaskHandler,
   TaskThunk,
@@ -41,6 +47,11 @@ export const componentRegistry = new Map<string, ComponentInstance>();
 export const actionThunkCache = new Map<string, ActionThunk>();
 /** @internal */
 export const taskThunkCache = new Map<string, TaskThunk>();
+/** @internal */
+export const subscriptionThunkCache = new Map<string, SubscriptionThunk>();
+
+// Tracks active subscription cleanup functions keyed by "componentId:subscriptionName"
+const subscriptionCleanups = new Map<string, () => void>();
 
 // Tracks which cache keys were referenced during the current root render pass.
 // Entries not touched are evicted after patch to prevent unbounded growth from
@@ -70,6 +81,9 @@ function resetAppState(): void {
   componentRegistry.clear();
   actionThunkCache.clear();
   taskThunkCache.clear();
+  subscriptionThunkCache.clear();
+  subscriptionCleanups.forEach((cleanup) => cleanup());
+  subscriptionCleanups.clear();
   activeThunkKeys.clear();
 
   rootAction = undefined;
@@ -162,6 +176,80 @@ function createTaskThunk(componentId: string, taskName: string, data: unknown): 
   taskThunk.taskData = data;
   taskThunkCache.set(cacheKey, taskThunk);
   return taskThunk;
+}
+
+// Subscription thunk creator with memoization
+function createSubscriptionThunk(
+  componentId: string,
+  subscriptionName: string,
+  data: unknown
+): SubscriptionThunk {
+  const cacheKey = createCacheKey(componentId, subscriptionName, data);
+  activeThunkKeys.add(cacheKey);
+
+  const cached = subscriptionThunkCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const subscriptionThunk: {
+    (thunkInput?: Record<string, unknown> | Event): void;
+    type: ThunkType.Subscription;
+    subscriptionName: string;
+    subscriptionData?: unknown;
+  } = (thunkInput) => {
+    if (isDomEvent(thunkInput) || thunkInput === internalKey) {
+      const instance = componentRegistry.get(componentId);
+      if (!instance) {
+        return;
+      }
+      connectSubscription(instance, subscriptionName, data);
+    } else {
+      log.manualError(componentId, subscriptionName);
+    }
+  };
+
+  subscriptionThunk.type = ThunkType.Subscription;
+  subscriptionThunk.subscriptionName = String(subscriptionName);
+  subscriptionThunk.subscriptionData = data;
+  subscriptionThunkCache.set(cacheKey, subscriptionThunk);
+  return subscriptionThunk;
+}
+
+function connectSubscription(
+  instance: ComponentInstance,
+  subscriptionName: string,
+  data: unknown
+): void {
+  const { config, id } = instance;
+  const subscriptions = config.subscriptions;
+
+  if (!subscriptions?.[subscriptionName]) {
+    throw Error(`Subscription ${subscriptionName} not found in ${id}`);
+  }
+
+  const cleanupKey = `${id}:${subscriptionName}`;
+
+  // Tear down existing subscription before replacing
+  const existingCleanup = subscriptionCleanups.get(cleanupKey);
+  if (existingCleanup) {
+    existingCleanup();
+    subscriptionCleanups.delete(cleanupKey);
+  }
+
+  const { connect } = subscriptions[subscriptionName](data);
+
+  const runAction = (actionName: unknown, actionData?: unknown): void => {
+    const currentInstance = componentRegistry.get(id);
+    if (currentInstance) {
+      executeAction(currentInstance, String(actionName), actionData);
+    }
+  };
+
+  const cleanup = connect(runAction);
+  subscriptionCleanups.set(cleanupKey, cleanup);
+
+  log.subscriptionConnect(id, String(subscriptionName));
 }
 
 function executeAction(
@@ -381,6 +469,11 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
           taskThunkCache.delete(key);
         }
       });
+      subscriptionThunkCache.forEach((_, key) => {
+        if (!activeThunkKeys.has(key)) {
+          subscriptionThunkCache.delete(key);
+        }
+      });
       activeThunkKeys.clear();
     }
 
@@ -392,8 +485,8 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
 }
 
 /**
- * Defines a component. Pass a callback that receives `action`, `task`, `rootAction`, and
- * `rootTask` factory functions and returns a {@link Config}.
+ * Defines a component. Pass a callback that receives `action`, `task`, `subscription`,
+ * `rootAction`, and `rootTask` factory functions and returns a {@link Config}.
  *
  * Returns a render function `(id, props?) => VNode` that is called by the parent to mount the
  * component into the virtual DOM.
@@ -450,9 +543,17 @@ export function renderComponent<TComponent extends Component>(
     return createTaskThunk(id, String(taskName), data);
   };
 
+  const subscription: GetSubscriptionThunk<TComponent["SubscriptionPayloads"]> = (
+    subscriptionName,
+    data
+  ): SubscriptionThunk => {
+    return createSubscriptionThunk(id, String(subscriptionName), data);
+  };
+
   const config = getConfig({
     action,
     task,
+    subscription,
     // Assert root action/task types from the `Component` type
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     rootAction: rootAction as GetActionThunk<TComponent["RootActionPayloads"]>,
@@ -531,15 +632,29 @@ function setCleanup(instance: ComponentInstance): void {
     if (inst && !inst.inCurrentRender) {
       componentRegistry.delete(instance.id);
 
+      // Tear down active subscriptions
+      const prefix = `${instance.id}:`;
+      Array.from(subscriptionCleanups.keys()).forEach((key) => {
+        if (key.startsWith(prefix)) {
+          subscriptionCleanups.get(key)?.();
+          subscriptionCleanups.delete(key);
+        }
+      });
+
       // Clean up thunk caches
       Array.from(actionThunkCache.keys()).forEach((key) => {
-        if (key.startsWith(`${instance.id}:`)) {
+        if (key.startsWith(prefix)) {
           actionThunkCache.delete(key);
         }
       });
       Array.from(taskThunkCache.keys()).forEach((key) => {
-        if (key.startsWith(`${instance.id}:`)) {
+        if (key.startsWith(prefix)) {
           taskThunkCache.delete(key);
+        }
+      });
+      Array.from(subscriptionThunkCache.keys()).forEach((key) => {
+        if (key.startsWith(prefix)) {
+          subscriptionThunkCache.delete(key);
         }
       });
 
@@ -596,7 +711,7 @@ function isDomEvent(event?: Record<string, unknown> | Event): event is Normalize
   return event instanceof Event;
 }
 
-function isThunk(next: Next): next is ActionThunk | TaskThunk {
+function isThunk(next: Next): next is ActionThunk | TaskThunk | SubscriptionThunk {
   if (next) {
     return !Array.isArray(next) && next.type in ThunkType;
   }

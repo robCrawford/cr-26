@@ -87,6 +87,13 @@ type Component = {
   State: Readonly<{ count: number }>;
   ActionPayloads: Readonly<{ Increment: undefined }>;
 };
+
+// Component with subscriptions
+type Component = {
+  State: Readonly<{ messages: string[] }>;
+  ActionPayloads: Readonly<{ OnMessage: { text: string } }>;
+  SubscriptionPayloads: Readonly<{ MessageFeed: { url: string } }>;
+};
 ```
 
 **Why Component type is required:**
@@ -196,6 +203,55 @@ tasks: {
 ```
 
 See `examples/spa/src/app.ts` (SetDocTitle) and `examples/spa/src/components/counter.ts` (ValidateCount).
+
+### Subscriptions (Persistent Event Sources)
+
+**For**: WebSockets, Firestore `onSnapshot`, SSE, or any listener that pushes multiple events over time.
+
+Unlike tasks (one-shot: perform → success/failure), subscriptions stay open and dispatch actions imperatively via a component-scoped `runAction`. The framework automatically tears down the subscription when the component unmounts or when the same subscription is re-triggered.
+
+```typescript
+type Component = {
+  State: Readonly<{ messages: string[] }>;
+  ActionPayloads: Readonly<{
+    Init: undefined;
+    OnMessage: { text: string };
+  }>;
+  SubscriptionPayloads: Readonly<{
+    MessageFeed: { url: string };
+  }>;
+};
+
+export const chat = component<Component>(({ action, subscription }) => ({
+  state: (): State => ({ messages: [] }),
+  init: subscription("MessageFeed", { url: "wss://example.com/chat" }),
+  actions: {
+    Init: (_, { state }): { state: State } => ({ state }),
+    OnMessage: ({ text }, { state }): { state: State } => ({
+      state: { ...state, messages: [...state.messages, text] }
+    })
+  },
+  subscriptions: {
+    MessageFeed: ({ url }): Subscription<ActionPayloads> => ({
+      connect: (runAction) => {
+        const ws = new WebSocket(url);
+        ws.onmessage = (event) => {
+          runAction("OnMessage", { text: event.data });
+        };
+        // Returned function is called automatically on unmount or re-subscribe
+        return () => ws.close();
+      }
+    })
+  },
+  view: ({ id, state }): VNode => div(`#${id}`, state.messages.join(", "))
+}));
+```
+
+**Key rules for subscriptions:**
+- `connect` receives `runAction` — the only legitimate way to dispatch from a persistent listener
+- `connect` MUST return a cleanup function (called by the framework on unmount or re-subscribe)
+- Re-triggering the same subscription tears down the old one before connecting the new one
+- `runAction` silently no-ops if the component has been unmounted
 
 ### External I/O Wiring
 
@@ -714,17 +770,18 @@ Multiple `setHook` calls on the same hook name compose automatically — each ca
 
 1. **Component type is required** - Every component MUST define a `Component` type for type safety and inference
 2. **Actions are pure** - No I/O, no side effects, no async
-3. **Tasks contain all side effects** - API calls, browser APIs, logging
-4. **State is immutable** - Use spread operators, return same reference if unchanged
-5. **Types are Readonly** - Props and State must be `Readonly<...>`
-6. **Reference equality optimization** - Framework uses `!==` to check state changes; return same reference to skip renders
-7. **Don't memo components with rootState** - They won't see changes
-8. **External events** - Wire root-level events in `mount()` init; child components use task `perform` + `destroy` config for setup/teardown
-9. **Service functions for I/O** - Extract reusable I/O to services/
-10. **Test with componentTest** - Export Component type for type inference
-11. **Context in actions** - `props`, `state`, `rootState` non-optional; `event` optional
-12. **Component type fields are optional** - Only include what you use
-13. **TypeScript strict mode** - Add return types: `{ state: State; next: Next }`, `Task<...>`, `VNode`
-14. **Keep state local unless shared** - Only lift state when a second component needs it; root state read by nothing outside the root view is over-lifted
-15. **Prefer props over rootState for single fields** - A component that reads one field from `rootState` is a signal that field should be a prop
-16. **Don't store derived values** - Compute in the view anything that depends solely on existing state or props
+3. **Tasks for one-shot side effects** - API calls, browser APIs, logging
+4. **Subscriptions for persistent listeners** - WebSockets, Firestore, SSE; `connect` returns a cleanup function
+5. **State is immutable** - Use spread operators, return same reference if unchanged
+6. **Types are Readonly** - Props and State must be `Readonly<...>`
+7. **Reference equality optimization** - Framework uses `!==` to check state changes; return same reference to skip renders
+8. **Don't memo components with rootState** - They won't see changes
+9. **External events** - Wire root-level events in `mount()` init; child components use task `perform` + `destroy` for DOM listeners, or subscriptions for persistent data streams
+10. **Service functions for I/O** - Extract reusable I/O to services/
+11. **Test with componentTest** - Export Component type for type inference
+12. **Context in actions** - `props`, `state`, `rootState` non-optional; `event` optional
+13. **Component type fields are optional** - Only include what you use
+14. **TypeScript strict mode** - Add return types: `{ state: State; next: Next }`, `Task<...>`, `VNode`
+15. **Keep state local unless shared** - Only lift state when a second component needs it; root state read by nothing outside the root view is over-lifted
+16. **Prefer props over rootState for single fields** - A component that reads one field from `rootState` is a signal that field should be a prop
+17. **Don't store derived values** - Compute in the view anything that depends solely on existing state or props
