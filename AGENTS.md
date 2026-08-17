@@ -2,7 +2,7 @@
 
 ## Reference Implementation
 
-The `examples/spa/` directory is the canonical reference. Study these files:
+The [`examples/spa/`](https://github.com/robCrawford/cr-26/tree/master/examples/spa) directory is the canonical reference. Study these files:
 
 | File                             | Pattern Demonstrated                                                                     |
 | -------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -14,8 +14,9 @@ The `examples/spa/` directory is the canonical reference. Study these files:
 | `src/components/like.ts`         | Stateless component with rootState/rootAction/rootTask                                   |
 | `src/components/themeMenu.ts`    | Minimal component (only RootActionPayloads, no local state)                              |
 | `src/components/datesList.ts`    | `memo` for memoization, `key` for list diffing, event delegation                         |
+| `src/components/clock.ts`        | Subscription component with WebSocket-style persistent listener                          |
 | `src/pages/counterPage.ts`       | Page component with rootTask init                                                        |
-| `src/services/validation.ts`     | Service function pattern                                                                 |
+
 | `*.spec.ts` files                | Testing patterns                                                                         |
 
 ## Component Type (FOUNDATIONAL)
@@ -252,6 +253,8 @@ export const chat = component<Component>(({ action, subscription }) => ({
 - `connect` MUST return a cleanup function (called by the framework on unmount or re-subscribe)
 - Re-triggering the same subscription tears down the old one before connecting the new one
 - `runAction` silently no-ops if the component has been unmounted
+
+See `examples/spa/src/components/clock.ts` for the complete pattern with a WebSocket-style listener.
 
 ### External I/O Wiring
 

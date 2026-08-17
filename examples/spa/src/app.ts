@@ -1,6 +1,7 @@
 import { component, html, Task, VNode } from "cr-26";
 import counterPage from "./pages/counterPage";
 import listPage from "./pages/listPage";
+import clock from "./components/clock";
 const { div } = html;
 
 export type RootState = Readonly<{
@@ -91,15 +92,18 @@ export default component<Component>(() => ({
     return div(
       `#${id}.page`,
       { class: { light: state.theme === "light", dark: state.theme === "dark" } },
-      ((): VNode | undefined => {
-        switch (state.page) {
-          case "listPage":
-            return listPage("#list-page");
+      [
+        ((): VNode | undefined => {
+          switch (state.page) {
+            case "listPage":
+              return listPage("#list-page");
 
-          case "counterPage":
-            return counterPage("#counter-page");
-        }
-      })()
+            case "counterPage":
+              return counterPage("#counter-page");
+          }
+        })(),
+        clock("#clock")
+      ]
     );
   }
 }));
