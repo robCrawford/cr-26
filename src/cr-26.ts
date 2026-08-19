@@ -374,6 +374,11 @@ function runNext(instance: ComponentInstance, next: Next | undefined): void {
     // Thunks may only be invoked here or from the DOM
     // `internalKey` prevents any manual calls from outside
     next(internalKey);
+    // Actions and tasks re-enter runNext themselves (sync and async respectively).
+    // Subscriptions are fire-and-forget — render here.
+    if (next.type === ThunkType.Subscription) {
+      renderComponentInstance(instance);
+    }
   } else if (Array.isArray(next)) {
     noRender++;
     next.forEach((n: Next) => runNext(instance, n));

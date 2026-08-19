@@ -1213,5 +1213,44 @@ describe("Component Lifecycle & State Management", () => {
       expect(connectCount).toBe(2);
       expect(secondCleanup).not.toHaveBeenCalled();
     });
+
+    it("should render state change when subscription returned as next from post-mount action", () => {
+      let actionRef: Function = () => {};
+
+      const comp = component<{
+        Props: Record<string, never>;
+        State: { visible: boolean };
+        ActionPayloads: { Show: undefined };
+        SubscriptionPayloads: { Listen: undefined };
+      }>(({ action: a, subscription: s }) => ({
+        state: () => ({ visible: false }),
+        actions: {
+          Show: (_, { state }) => ({
+            state: { ...state, visible: true },
+            next: s("Listen")
+          })
+        },
+        subscriptions: {
+          Listen: () => ({
+            connect: () => () => {}
+          })
+        },
+        view: (ctx) => {
+          actionRef = a;
+          return div(`#${ctx.id}`, ctx.state.visible ? "visible" : "hidden");
+        }
+      }));
+
+      mount({ app: comp, props: {} });
+
+      const instance = componentRegistry.get("app");
+      expect(instance?.state).toEqual({ visible: false });
+
+      actionRef("Show")(testKey);
+
+      expect(instance?.state).toEqual({ visible: true });
+      // State changed but render was skipped — vnode still shows stale content
+      expect(instance?.vnode?.text).toBe("visible");
+    });
   });
 });

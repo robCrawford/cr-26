@@ -308,7 +308,12 @@ type TargetInputProps = EventTarget & Partial<HTMLInputElement> & Partial<Node>;
 export type NormalizedEvent = Event &
   Partial<TouchEvent> &
   Partial<MouseEvent> &
-  Partial<PointerEvent> & {
+  Partial<PointerEvent> &
+  Partial<KeyboardEvent> &
+  Partial<FocusEvent> &
+  Partial<WheelEvent> &
+  Partial<DragEvent> &
+  Partial<InputEvent> & {
     target: TargetInputProps | null;
     currentTarget: TargetInputProps | null;
   };
