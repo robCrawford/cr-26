@@ -1,24 +1,5 @@
 # AGENTS.md - cr-26 Development Guide for AI Agents
 
-## Reference Implementation
-
-The [`examples/spa/`](https://github.com/robCrawford/cr-26/tree/master/examples/spa) directory is the canonical reference. Study these files:
-
-| File                             | Pattern Demonstrated                                                                     |
-| -------------------------------- | ---------------------------------------------------------------------------------------- |
-| `src/index.ts`                   | Application bootstrap, mount(), external I/O wiring, subscribe("patch"), RunAction       |
-| `src/routes.ts`                  | Route configuration (pure data)                                                          |
-| `src/app.ts`                     | Root component, RootState/RootActionPayloads/RootTaskPayloads exports, IIFE view pattern |
-| `src/components/counter.ts`      | Full component: props, state, actions, tasks, child composition                          |
-| `src/components/notification.ts` | ActionThunk callback props, conditional classes                                          |
-| `src/components/like.ts`         | Stateless component with rootState/rootAction/rootTask                                   |
-| `src/components/themeMenu.ts`    | Minimal component (only RootActionPayloads, no local state)                              |
-| `src/components/datesList.ts`    | `memo` for memoization, `key` for list diffing, event delegation                         |
-| `src/components/clock.ts`        | Subscription component with WebSocket-style persistent listener                          |
-| `src/pages/counterPage.ts`       | Page component with rootTask init                                                        |
-
-| `*.spec.ts` files                | Testing patterns                                                                         |
-
 ## Component Type (FOUNDATIONAL)
 
 Every component MUST define a `Component` type. This is the foundation of type safety in cr-26.
@@ -26,7 +7,7 @@ Every component MUST define a `Component` type. This is the foundation of type s
 The Component type is a TypeScript interface that defines what your component uses. **All fields are optional** - only include what your component needs:
 
 ```typescript
-// Full component with everything - see examples/spa/src/components/counter.ts
+// Full component with everything
 type Component = {
   Props: Readonly<{ start: number }>;
   State: Readonly<{ count: number; feedback: string }>;
@@ -63,19 +44,19 @@ export const counter = component<Component>(({ action, task }) => ({
 **Common Component type patterns:**
 
 ```typescript
-// Stateless component with root access - see examples/spa/src/components/like.ts
+// Stateless component with root access
 type Component = {
   Props: Readonly<{ page: string }>;
   RootState: RootState;
   RootActionPayloads: RootActionPayloads;
 };
 
-// Minimal view-only component - see examples/spa/src/components/themeMenu.ts
+// Minimal view-only component
 type Component = {
   RootActionPayloads: RootActionPayloads;
 };
 
-// Page component - see examples/spa/src/pages/counterPage.ts
+// Page component
 type Component = {
   Props: Readonly<{ id: string }>;
   State: Readonly<{ initialized: boolean }>;
@@ -122,9 +103,32 @@ const testComponent = component<{
 }));
 ```
 
-See `src/components.spec.ts` for examples of defining Component types in tests.
-
 ## Core Architecture
+
+### Component Lifecycle
+
+**`init`** — an action, task, or subscription thunk dispatched once when the component first mounts:
+
+```typescript
+init: action("Init")                                    // action on mount
+init: task("FetchData", { id: props.id })               // task on mount
+init: subscription("MessageFeed", { url: "wss://..." }) // subscription on mount
+```
+
+**`destroy`** — a cleanup function called when the component's root vnode is removed from the DOM:
+
+```typescript
+destroy: () => {
+  window.removeEventListener("scroll", action("OnScroll"));
+}
+```
+
+**`state`** — a function that returns initial state. Receives `props` as an optional argument, allowing initial state to derive from props:
+
+```typescript
+state: (): State => ({ count: 0 })                      // without props
+state: (props): State => ({ count: props.start })        // with props
+```
 
 ### Actions (Pure Functions)
 
@@ -167,8 +171,6 @@ type ActionPayloads = Readonly<{
 action("Dismiss") // second arg omitted
 ```
 
-See `examples/spa/src/components/counter.ts` for complete action patterns.
-
 ### Tasks (Side Effects)
 
 **ONLY place for**: API calls, browser APIs, localStorage, timers, logging, DOM mutations.
@@ -202,8 +204,6 @@ tasks: {
   })
 }
 ```
-
-See `examples/spa/src/app.ts` (SetDocTitle) and `examples/spa/src/components/counter.ts` (ValidateCount).
 
 ### Subscriptions (Persistent Event Sources)
 
@@ -254,11 +254,9 @@ export const chat = component<Component>(({ action, subscription }) => ({
 - Re-triggering the same subscription tears down the old one before connecting the new one
 - `runAction` silently no-ops if the component has been unmounted
 
-See `examples/spa/src/components/clock.ts` for the complete pattern with a WebSocket-style listener.
-
 ### External I/O Wiring
 
-**Root-level**: Connect external events to root actions in `mount()` init callback. See `examples/spa/src/index.ts` for the complete pattern.
+**Root-level**: Connect external events to root actions in `mount()` init callback.
 
 **Child components**: Use a task's `perform` to attach an event listener, passing an action thunk directly as the callback. Action thunks accept DOM Events, so `addEventListener(event, actionThunk)` works. Use `destroy` on the config to tear down the listener when the component unmounts:
 
@@ -560,8 +558,6 @@ counter("#counter-0", {
 })
 ```
 
-See `examples/spa/src/components/counter.ts` and `examples/spa/src/pages/counterPage.ts` for the complete pattern.
-
 When a child action needs to handle a local DOM concern **and** update root state, fan out with an array — keeping the local task in the child component:
 
 ```typescript
@@ -574,7 +570,7 @@ PointerDown: ({ id }, { state }): { state: State; next: Next } => ({
 
 ### Action Callback Pattern
 
-Pass action thunks as props for child-to-parent communication. See `examples/spa/src/components/notification.ts`:
+Pass action thunks as props for child-to-parent communication:
 
 ```typescript
 // Child receives callback
@@ -637,8 +633,6 @@ input({ props: { value: state.text, type: "text" } }); // DOM properties
 
 ### Conditional Classes
 
-See `examples/spa/src/components/notification.ts`:
-
 ```typescript
 div(`#${id}.notification`, { class: { show: state.show && props.text.length } }, children);
 ```
@@ -656,8 +650,6 @@ items.map((item) => li({ key: item.id }, item.name));
 Use `memo` to skip re-rendering when props haven't changed. `memo` is a HOF — wrap a render function once at module level and call the result like a component.
 
 **CRITICAL**: Only `memo` render functions that **DO NOT access `rootState`**.
-
-See `examples/spa/src/components/datesList.ts` for the complete pattern:
 
 ```typescript
 import { ActionThunk, memo } from "cr-26";
@@ -700,18 +692,18 @@ const secondaryList = memo(listRenderFn, "secondary");
 
 Use `componentTest` to test component logic without mocks. Returns plain data instead of thunks.
 
-See `examples/spa/src/components/counter.spec.ts` for comprehensive patterns:
+Comprehensive patterns:
 
 - Testing initial state and init action
 - Testing actions with/without next
 - Testing passed in action thunks
 - Testing tasks (perform, success, failure)
 
-See `examples/spa/src/components/notification.spec.ts` for:
+ActionThunk props patterns:
 
 - Testing components with ActionThunk props (mock with `ThunkType.Action` from main package)
 
-See `examples/spa/src/pages/counterPage.spec.ts` for:
+Page component patterns:
 
 - Testing page components with rootTask init
 
@@ -730,7 +722,7 @@ const { perform, success, failure } = taskTest("ValidateCount", { count: 0 });
 const { name, data } = expectOne(success?.({ text: "Even" }));
 ```
 
-## Project Structure
+## Recommended Project Structure
 
 ```
 src/
@@ -739,9 +731,12 @@ src/
 ├── routes.ts        # Route configuration (pure data)
 ├── components/      # Reusable components (*.ts, *.spec.ts)
 ├── pages/           # Page components
-├── services/        # I/O functions (api.ts, storage.ts, browser.ts)
+├── services/        # Encapsulated functionality with a defined responsibility (e.g. API, storage, browser)
+├── helpers/         # Functions specific to the code they support (e.g. domain logic, formatters)
+├── utils/           # Generic, reusable functions with no domain knowledge (e.g. deepClone, debounce)
 └── css/
 ```
+
 
 ## Advanced Patterns
 
@@ -760,6 +755,8 @@ view: ({ id }): VNode =>
 Multiple `setHook` calls on the same hook name compose automatically — each callback runs in the order it was added. The framework's own internal cleanup is always appended last, so `setHook(vnode, "destroy", ...)` is safe on the component's root vnode when needed.
 
 **Available hooks**: `init`, `create`, `insert`, `prepatch`, `update`, `postpatch`, `destroy`, `remove`
+
+**Note**: `vnode.elm` is `undefined` until snabbdom inserts the element — access it only inside hook callbacks, not at vnode creation time.
 
 ## Debugging
 
