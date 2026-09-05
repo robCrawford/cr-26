@@ -1,6 +1,6 @@
 {
   "name": "cr-26",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "TypeScript components made with pure functions",
   "type": "module",
   "main": "dist/cr-26.js",
