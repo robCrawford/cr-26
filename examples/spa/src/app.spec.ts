@@ -16,12 +16,12 @@ describe("App", () => {
   });
 
   describe("'SetPage' action", () => {
-    const { state, next } = actionTest<RootState>("SetPage", { page: "test" });
+    const { state, next } = actionTest<RootState>("SetPage", { page: "counterPage" });
 
     it("should update state", () => {
       expect(state).toEqual({
         ...initialState,
-        page: "test"
+        page: "counterPage"
       });
     });
 
@@ -31,12 +31,12 @@ describe("App", () => {
   });
 
   describe("'SetTheme' action", () => {
-    const { state, next } = actionTest<RootState>("SetTheme", { theme: "test" });
+    const { state, next } = actionTest<RootState>("SetTheme", { theme: "light" });
 
     it("should update state", () => {
       expect(state).toEqual({
         ...initialState,
-        theme: "test"
+        theme: "light"
       });
     });
 
@@ -64,7 +64,7 @@ describe("App", () => {
   });
 
   describe("'SetDocTitle' task", () => {
-    const { perform, success, failure } = taskTest("SetDocTitle", { count: 0 });
+    const { perform, success, failure } = taskTest("SetDocTitle", { title: "Test title" });
 
     it("should provide perform", () => {
       expect(perform).toBeDefined();

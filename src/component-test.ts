@@ -43,6 +43,8 @@ import {
   Config,
   Context,
   GetConfig,
+  PayloadArgs,
+  PropsArgs,
   Subscription,
   ThunkType
 } from "./cr-26.types";
@@ -75,12 +77,17 @@ export type ComponentTestApi<
   config: Config<TComponent>;
   initialState: TState;
   actionTest: <TActionState = TState>(
-    name: string,
-    data?: Record<string, unknown>,
-    options?: ActionTestOptions<TActionState, TRootState>
+    ...args: PayloadArgs<
+      TComponent["ActionPayloads"],
+      [options?: ActionTestOptions<TActionState, TRootState>]
+    >
   ) => { state: TActionState; next?: NextData | NextData[] };
-  taskTest: (name: string, data?: Record<string, unknown>) => TaskTestSpec;
-  subscriptionTest: (name: string, data?: Record<string, unknown>) => SubscriptionTestSpec;
+  taskTest: (
+    ...args: PayloadArgs<TComponent["TaskPayloads"]>
+  ) => TaskTestSpec<TComponent["Props"], TState, TRootState>;
+  subscriptionTest: (
+    ...args: PayloadArgs<TComponent["SubscriptionPayloads"]>
+  ) => SubscriptionTestSpec<TComponent["ActionPayloads"]>;
 };
 
 export type TaskTestSpec<
@@ -88,7 +95,7 @@ export type TaskTestSpec<
   TState = Record<string, unknown>,
   TRootState = Record<string, unknown>
 > = {
-  perform: () => Promise<unknown> | void;
+  perform: () => unknown;
   success?: (
     result?: unknown,
     ctx?: Context<TProps, TState, TRootState>
@@ -107,7 +114,7 @@ const nextToData = (name: string, data?: Record<string, unknown>): NextData => (
 
 export const componentTest = <TComponent extends Component>(
   component: { getConfig: GetConfig<TComponent> },
-  props?: TComponent["Props"]
+  ...[props]: PropsArgs<TComponent["Props"]>
 ): ComponentTestApi<TComponent, TComponent["State"], TComponent["RootState"]> => {
   // Initialise component passing in `nextToData()` instead of `action()` and `task()` functions
   const config = component.getConfig({
@@ -122,7 +129,7 @@ export const componentTest = <TComponent extends Component>(
     // @ts-expect-error test api
     rootTask: nextToData
   });
-  const initialState = config.state?.(props);
+  const initialState = config.state?.(props ?? {});
 
   return {
     // Output from the callback passed into `component(...)`
@@ -131,15 +138,16 @@ export const componentTest = <TComponent extends Component>(
     // For comparing state changes
     initialState,
 
-    actionTest<TState, TRootState = Record<string, unknown>>(
-      name: string,
-      data?: Record<string, unknown>,
-      options?: ActionTestOptions<TState, TRootState>
-    ): { state: TState; next?: NextData | NextData[] } {
+    actionTest<TActionState = TComponent["State"]>(
+      ...[name, data, options]: PayloadArgs<
+        TComponent["ActionPayloads"],
+        [options?: ActionTestOptions<TActionState, TComponent["RootState"]>]
+      >
+    ): { state: TActionState; next?: NextData | NextData[] } {
       const actions: TestHandlers = config.actions || {};
 
       // Returns any next operations as data
-      return actions[name]?.(data, {
+      return actions[String(name)]?.(data, {
         id: options?.id ?? "",
         props: props ?? {},
         state: options?.state !== undefined ? options.state : (initialState ?? {}),
@@ -149,19 +157,23 @@ export const componentTest = <TComponent extends Component>(
     },
 
     // Get task spec for manually testing `success` and `failure` output
-    taskTest(name: string, data?: Record<string, unknown>): TaskTestSpec {
+    taskTest(
+      ...[name, data]: PayloadArgs<TComponent["TaskPayloads"]>
+    ): TaskTestSpec<TComponent["Props"], TComponent["State"], TComponent["RootState"]> {
       const tasks: TestHandlers = config.tasks || {};
 
       // Returns task spec
-      return tasks[name]?.(data);
+      return tasks[String(name)]?.(data);
     },
 
     // Get subscription spec for testing `connect` output
-    subscriptionTest(name: string, data?: Record<string, unknown>): SubscriptionTestSpec {
+    subscriptionTest(
+      ...[name, data]: PayloadArgs<TComponent["SubscriptionPayloads"]>
+    ): SubscriptionTestSpec<TComponent["ActionPayloads"]> {
       const subscriptions: TestHandlers = config.subscriptions || {};
 
       // Returns subscription spec
-      return subscriptions[name]?.(data);
+      return subscriptions[String(name)]?.(data);
     }
   };
 };

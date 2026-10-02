@@ -12,6 +12,7 @@ import {
   GetTaskThunk,
   Next,
   NormalizedEvent,
+  PropsArgs,
   RunAction,
   SubscriptionThunk,
   TaskThunk,
@@ -498,10 +499,13 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
  */
 export function component<TComponent extends Component>(
   getConfig: GetConfig<TComponent>
-): { (idStr: string, props?: TComponent["Props"]): VNode; getConfig: GetConfig<TComponent> } {
+): {
+  (idStr: string, ...args: PropsArgs<TComponent["Props"]>): VNode;
+  getConfig: GetConfig<TComponent>;
+} {
   // Pass in callback that returns component config
   // Returns render function that is called by parent e.g. `counter("counter-0", { start: 0 })`
-  const renderFn = (idStr: string, props?: TComponent["Props"]): VNode => {
+  const renderFn = (idStr: string, ...args: PropsArgs<TComponent["Props"]>): VNode => {
     const id = (idStr || "").replace(/^#/, "");
 
     // Check if component exists in registry
@@ -516,7 +520,7 @@ export function component<TComponent extends Component>(
       existing.inCurrentRender = true;
     }
 
-    return renderComponent<TComponent>(id, getConfig, props);
+    return renderComponent<TComponent>(id, getConfig, ...args);
   };
   // Add a handle to `getConfig` for tests
   renderFn.getConfig = getConfig;
@@ -526,7 +530,7 @@ export function component<TComponent extends Component>(
 export function renderComponent<TComponent extends Component>(
   id: string,
   getConfig: GetConfig<TComponent>,
-  props?: TComponent["Props"]
+  ...[props]: PropsArgs<TComponent["Props"]>
 ): VNode {
   deepFreeze(props);
   const isRoot = id === appId;
@@ -551,8 +555,7 @@ export function renderComponent<TComponent extends Component>(
   };
 
   const subscription: GetSubscriptionThunk<TComponent["SubscriptionPayloads"]> = (
-    subscriptionName,
-    data
+    ...[subscriptionName, data]
   ): SubscriptionThunk => {
     return createSubscriptionThunk(id, String(subscriptionName), data);
   };
@@ -568,7 +571,7 @@ export function renderComponent<TComponent extends Component>(
     rootTask: rootTask as GetTaskThunk<TComponent["RootTaskPayloads"]>
   });
 
-  const state = config.state?.(props);
+  const state = config.state?.(props ?? {});
 
   // Create component instance
   const instance: ComponentInstance = {
@@ -685,7 +688,7 @@ export function mount<TActions, TProps = Record<string, never>>({
   props,
   init
 }: {
-  app: (idStr: string, props?: TProps) => VNode;
+  app: (idStr: string, props: TProps) => VNode;
   props: TProps;
   init?: (runRootAction: RunAction<TActions>) => void;
 }): void {

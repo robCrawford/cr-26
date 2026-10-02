@@ -64,8 +64,7 @@ export type SubscriptionThunk = {
  * Creates a {@link SubscriptionThunk} for the named subscription.
  */
 export type GetSubscriptionThunk<TSubscriptions> = (
-  subscriptionName: keyof TSubscriptions,
-  data?: ValueOf<TSubscriptions>
+  ...args: PayloadArgs<TSubscriptions>
 ) => SubscriptionThunk;
 
 /**
@@ -125,7 +124,7 @@ export type Task<TResult, TProps, TState, TRootState = unknown, TError = unknown
    * Runs the side effect. The only place for I/O, async operations, browser APIs, etc.
    * Resolve to pass a result to `success`; throw or reject to trigger `failure`.
    */
-  perform: () => Promise<TResult | void> | TResult | void;
+  perform: () => Promise<TResult> | TResult;
   /** Called when `perform` resolves. Returns the next action/task thunk(s) to dispatch. */
   success?: (result: TResult, ctx: Context<TProps, TState, TRootState>) => Next;
   /**
@@ -218,10 +217,22 @@ type StateConfig<TComponent extends Component> = undefined extends TComponent["S
 
 /**
  * The configuration object returned by the callback passed to `component(...)`.
- * All fields except `view` are optional. `state` is required when `State` is declared on the
- * `Component` type, and must be omitted when it is not.
+ * `view` is required. `state` is required when `State` is declared and must be omitted
+ * otherwise. Handler maps are required when their local payload maps declare any names.
  */
-export type Config<TComponent extends Component = Component> = StateConfig<TComponent> & {
+export type Config<TComponent extends Component = Component> = StateConfig<TComponent> &
+  ComponentConfig<TComponent> &
+  RequiredHandlerMaps<TComponent>;
+
+type RequiredHandlerMaps<TComponent extends Component> = {
+  [TKey in "actions" | "tasks" | "subscriptions" as keyof NonNullable<
+    ComponentConfig<TComponent>[TKey]
+  > extends never
+    ? never
+    : TKey]-?: NonNullable<ComponentConfig<TComponent>[TKey]>;
+};
+
+type ComponentConfig<TComponent extends Component> = {
   /**
    * Action or task thunk(s) to dispatch when this component first mounts.
    * Created with `action(...)` or `task(...)`.
@@ -231,7 +242,7 @@ export type Config<TComponent extends Component = Component> = StateConfig<TComp
   destroy?: () => void;
   /** Map of pure, synchronous action handler functions keyed by action name. */
   actions?: {
-    [TKey in keyof TComponent["ActionPayloads"]]: ActionHandler<
+    [TKey in keyof TComponent["ActionPayloads"]]-?: ActionHandler<
       TComponent["ActionPayloads"][TKey],
       TComponent["Props"],
       TComponent["State"],
@@ -240,7 +251,7 @@ export type Config<TComponent extends Component = Component> = StateConfig<TComp
   };
   /** Map of task handler functions keyed by task name. */
   tasks?: {
-    [TKey in keyof TComponent["TaskPayloads"]]: TaskHandler<
+    [TKey in keyof TComponent["TaskPayloads"]]-?: TaskHandler<
       TComponent["TaskPayloads"][TKey],
       TComponent["Props"],
       TComponent["State"],
@@ -249,7 +260,7 @@ export type Config<TComponent extends Component = Component> = StateConfig<TComp
   };
   /** Map of subscription handler functions keyed by subscription name. */
   subscriptions?: {
-    [TKey in keyof TComponent["SubscriptionPayloads"]]: SubscriptionHandler<
+    [TKey in keyof TComponent["SubscriptionPayloads"]]-?: SubscriptionHandler<
       TComponent["SubscriptionPayloads"][TKey],
       TComponent["ActionPayloads"]
     >;
@@ -282,10 +293,16 @@ export type RenderFn<TProps> = (props?: TProps) => VNode | void;
 /*
   Type Utils
 */
-type PayloadArgs<TPayloads> = {
+export type PropsArgs<TProps> = undefined extends TProps
+  ? [props?: TProps]
+  : Record<string, never> extends TProps
+    ? [props?: TProps]
+    : [props: TProps];
+
+export type PayloadArgs<TPayloads, TTail extends unknown[] = []> = {
   [TKey in keyof TPayloads]-?: undefined extends TPayloads[TKey]
-    ? [name: TKey, data?: TPayloads[TKey]]
-    : [name: TKey, data: TPayloads[TKey]];
+    ? [name: TKey, data?: TPayloads[TKey], ...tail: TTail]
+    : [name: TKey, data: TPayloads[TKey], ...tail: TTail];
 }[keyof TPayloads];
 
 export type ValueOf<T> = T[keyof T];
