@@ -540,11 +540,13 @@ export function renderComponent<TComponent extends Component>(
     }
   }
 
-  const action: GetActionThunk<TComponent["ActionPayloads"]> = (actionName, data): ActionThunk => {
+  const action: GetActionThunk<TComponent["ActionPayloads"]> = (
+    ...[actionName, data]
+  ): ActionThunk => {
     return createActionThunk(id, String(actionName), data);
   };
 
-  const task: GetTaskThunk<TComponent["TaskPayloads"]> = (taskName, data): TaskThunk => {
+  const task: GetTaskThunk<TComponent["TaskPayloads"]> = (...[taskName, data]): TaskThunk => {
     return createTaskThunk(id, String(taskName), data);
   };
 
@@ -705,8 +707,8 @@ export function mount<TActions, TProps = Record<string, never>>({
   // Manually invoking an action without `internalKey` is an error, so `runRootAction`
   // is provided by `mount` for wiring up events to root actions (e.g. routing)
   if (init) {
-    const runRootAction: RunAction<TActions> = (actionName, data) => {
-      rootAction?.(actionName, data)(internalKey);
+    const runRootAction: RunAction<TActions> = (...[actionName, data]): void => {
+      rootAction?.(String(actionName), data)(internalKey);
     };
     init(runRootAction);
   }

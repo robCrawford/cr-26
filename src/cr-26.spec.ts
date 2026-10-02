@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { expectTypeOf, vi } from "vitest";
 import {
   component,
   renderComponent,
@@ -10,7 +10,7 @@ import {
 } from "./cr-26";
 import * as vdom from "./vdom";
 import { log } from "./log";
-import { ActionHandler, ActionThunk, Context, GetActionThunk } from "./cr-26.types";
+import { ActionHandler, ActionThunk, Context, GetActionThunk, RunAction } from "./cr-26.types";
 import { componentTest } from "./component-test";
 const { div } = html;
 
@@ -19,6 +19,83 @@ const renderSpy = vi.spyOn(log, "render");
 const testKey = _setTestKey({});
 
 describe("cr-26", () => {
+  it("should enforce correlated payloads for action and task dispatch", () => {
+    type Payloads = Readonly<{
+      RequiredNumberPayload: { value: number };
+      NoPayload: undefined;
+      RequiredStringPayload: { text: string };
+      OptionalNumberPayload: { value: number } | undefined;
+    }>;
+    type DispatchArgs =
+      | [name: "RequiredNumberPayload", data: { value: number }]
+      | [name: "NoPayload", data?: undefined]
+      | [name: "RequiredStringPayload", data: { text: string }]
+      | [name: "OptionalNumberPayload", data?: { value: number } | undefined];
+    type Component = {
+      ActionPayloads: Payloads;
+      RootActionPayloads: Payloads;
+      TaskPayloads: Payloads;
+      RootTaskPayloads: Payloads;
+    };
+
+    const runAction: RunAction<Payloads> = vi.fn();
+    const testComponent = component<Component>(({ action, rootAction, task, rootTask }) => {
+      expectTypeOf(action).parameters.toEqualTypeOf<DispatchArgs>();
+      expectTypeOf(rootAction).parameters.toEqualTypeOf<DispatchArgs>();
+      expectTypeOf(task).parameters.toEqualTypeOf<DispatchArgs>();
+      expectTypeOf(rootTask).parameters.toEqualTypeOf<DispatchArgs>();
+      expectTypeOf(runAction).parameters.toEqualTypeOf<DispatchArgs>();
+
+      for (const factory of [action, rootAction, task, rootTask, runAction]) {
+        factory("RequiredNumberPayload", { value: 100 });
+        factory("NoPayload");
+        factory("NoPayload", undefined);
+        factory("RequiredStringPayload", { text: "test" });
+        factory("OptionalNumberPayload");
+        factory("OptionalNumberPayload", undefined);
+        factory("OptionalNumberPayload", { value: 100 });
+
+        // @ts-expect-error RequiredNumberPayload requires a payload
+        factory("RequiredNumberPayload");
+        // @ts-expect-error RequiredNumberPayload does not accept undefined
+        factory("RequiredNumberPayload", undefined);
+        // @ts-expect-error RequiredNumberPayload requires a numeric value
+        factory("RequiredNumberPayload", { value: "100" });
+        // @ts-expect-error RequiredNumberPayload does not accept another task's payload
+        factory("RequiredNumberPayload", { text: "test" });
+        // @ts-expect-error NoPayload does not accept a payload
+        factory("NoPayload", { value: 100 });
+
+        const checkUnionName = (name: keyof Payloads): void => {
+          // @ts-expect-error An ambiguous name cannot omit a potentially required payload
+          factory(name);
+          // @ts-expect-error An ambiguous name cannot use an uncorrelated payload
+          factory(name, { value: 100 });
+
+          if (name === "RequiredNumberPayload") {
+            factory(name, { value: 100 });
+          } else if (name === "NoPayload") {
+            factory(name);
+          }
+
+          const args: ["RequiredNumberPayload", { value: number }] | ["NoPayload"] =
+            name === "RequiredNumberPayload" ? [name, { value: 100 }] : ["NoPayload"];
+          factory(...args);
+        };
+        checkUnionName("RequiredNumberPayload");
+        checkUnionName("NoPayload");
+      }
+
+      return {
+        init: task("RequiredNumberPayload", { value: 100 }),
+        view: (): VNode => div("Tasks")
+      };
+    });
+
+    const { config } = componentTest<Component>(testComponent);
+    expect(config.init).toEqual({ name: "RequiredNumberPayload", data: { value: 100 } });
+  });
+
   let state: { count: number };
   let action: GetActionThunk<Record<string, unknown>>;
   let componentId = 0;

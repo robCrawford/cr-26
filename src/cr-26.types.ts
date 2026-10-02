@@ -20,10 +20,7 @@ export type ActionThunk = {
  * The `action(name, data?)` function received inside `component(...)`.
  * Creates an {@link ActionThunk} for the named action.
  */
-export type GetActionThunk<TActions> = <TKey extends keyof TActions>(
-  actionName: TKey,
-  data?: TActions[TKey]
-) => ActionThunk;
+export type GetActionThunk<TActions> = (...args: PayloadArgs<TActions>) => ActionThunk;
 
 /**
  * Immediately invokes an action by name. Provided via the `init` callback on {@link mount}
@@ -32,7 +29,7 @@ export type GetActionThunk<TActions> = <TKey extends keyof TActions>(
  * (e.g. Firestore listeners, WebSocket messages).
  * Unlike `action(...)`, this is not a deferred thunk — it runs the action directly.
  */
-export type RunAction<TActions> = (actionName: keyof TActions, data?: ValueOf<TActions>) => void;
+export type RunAction<TActions> = (...args: PayloadArgs<TActions>) => void;
 
 /**
  * A deferred task call. Return as `next` from an action handler to schedule a side effect.
@@ -49,7 +46,7 @@ export type TaskThunk = {
  * The `task(name, data?)` function received inside `component(...)`.
  * Creates a {@link TaskThunk} for the named task.
  */
-export type GetTaskThunk<TTasks> = (taskName: keyof TTasks, data?: ValueOf<TTasks>) => TaskThunk;
+export type GetTaskThunk<TTasks> = (...args: PayloadArgs<TTasks>) => TaskThunk;
 
 /**
  * A deferred subscription call. Return as `next` from an action handler to set up a
@@ -285,6 +282,12 @@ export type RenderFn<TProps> = (props?: TProps) => VNode | void;
 /*
   Type Utils
 */
+type PayloadArgs<TPayloads> = {
+  [TKey in keyof TPayloads]-?: undefined extends TPayloads[TKey]
+    ? [name: TKey, data?: TPayloads[TKey]]
+    : [name: TKey, data: TPayloads[TKey]];
+}[keyof TPayloads];
+
 export type ValueOf<T> = T[keyof T];
 
 export type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T;
