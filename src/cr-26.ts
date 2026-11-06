@@ -417,14 +417,7 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
     }
 
     log.render(instance.id, instance.props);
-    setInViewExecution(true);
-    instance.vnode = instance.config.view({
-      id: instance.id,
-      props: instance.props ?? {},
-      state: instance.state ?? {},
-      rootState: rootState ?? {}
-    });
-    setInViewExecution(false);
+    instance.vnode = renderView(instance, isRenderRoot);
     log.setStateGlobal(instance.id, instance.state);
 
     // Patch the DOM once at the root
@@ -441,14 +434,7 @@ function renderComponentInstance(instance: ComponentInstance): VNode | undefined
         });
         instance.inCurrentRender = true;
         log.midRenderStateChange(instance.id, instance.props);
-        setInViewExecution(true);
-        instance.vnode = instance.config.view({
-          id: instance.id,
-          props: instance.props ?? {},
-          state: instance.state ?? {},
-          rootState: rootState ?? {}
-        });
-        setInViewExecution(false);
+        instance.vnode = renderView(instance, isRenderRoot);
         log.setStateGlobal(instance.id, instance.state);
       }
 
@@ -609,14 +595,7 @@ export function renderComponent<TComponent extends Component>(
   }
 
   log.render(id, props);
-  setInViewExecution(true);
-  instance.vnode = config.view({
-    id,
-    props: props ?? {},
-    state: instance.state ?? {},
-    rootState: rootState ?? {}
-  });
-  setInViewExecution(false);
+  instance.vnode = renderView(instance, isRoot);
   instance.prevProps = props;
 
   setCleanup(instance);
@@ -726,6 +705,29 @@ function isThunk(next: Next): next is ActionThunk | TaskThunk | SubscriptionThun
     return !Array.isArray(next) && next.type in ThunkType;
   }
   return false;
+}
+
+function renderView(instance: ComponentInstance, isRenderRoot: boolean): VNode {
+  setInViewExecution(true);
+  try {
+    return instance.config.view({
+      id: instance.id,
+      props: instance.props ?? {},
+      state: instance.state ?? {},
+      rootState: rootState ?? {}
+    });
+  } catch (error) {
+    if (isRenderRoot) {
+      renderingFromRoot = false;
+      stateChangedDuringRender = false;
+      Array.from(componentRegistry.values()).forEach((inst) => {
+        inst.inCurrentRender = false;
+      });
+    }
+    throw error;
+  } finally {
+    setInViewExecution(false);
+  }
 }
 
 const isFreezable = (value: unknown): value is Record<string, unknown> =>

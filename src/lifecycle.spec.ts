@@ -433,6 +433,48 @@ describe("Component Lifecycle & State Management", () => {
     });
   });
 
+  describe("Render error cleanup", () => {
+    it("resumes root rendering after a view throws", () => {
+      type State = Readonly<{ count: number; failView: boolean }>;
+      type TestComponent = {
+        Props: Record<string, never>;
+        State: State;
+        ActionPayloads: { FailView: undefined; RecoverView: undefined };
+      };
+
+      let action: Function = () => {};
+      const comp = component<TestComponent>(({ action: a }) => {
+        action = a;
+        return {
+          state: (): State => ({ count: 0, failView: false }),
+          actions: {
+            FailView: (_, { state }): { state: State } => ({
+              state: { ...state, count: state.count + 1, failView: true }
+            }),
+            RecoverView: (_, { state }): { state: State } => ({
+              state: { ...state, count: state.count + 1, failView: false }
+            })
+          },
+          view: ({ id, state }) => {
+            if (state.failView) {
+              throw Error("view failed");
+            }
+            return div(`#${id}`, `${state.count}`);
+          }
+        };
+      });
+
+      mount({ app: comp, props: {} });
+      expect(document.getElementById("app")?.textContent).toBe("0");
+
+      expect(() => action("FailView")(testKey)).toThrow("view failed");
+      expect(componentRegistry.get("app")?.inCurrentRender).toBe(false);
+
+      action("RecoverView")(testKey);
+      expect(document.getElementById("app")?.textContent).toBe("2");
+    });
+  });
+
   describe("State Optimization", () => {
     it("should skip render when state reference unchanged", () => {
       let action: Function = () => {};
