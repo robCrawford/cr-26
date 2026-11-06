@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { html, memo, patch, setHook, setInViewExecution, VNode } from "./vdom";
 
-const { ul } = html;
+const { div, ul } = html;
 
 describe("memo", () => {
   describe("returned function", () => {
@@ -157,6 +157,18 @@ describe("memo", () => {
 
       patch(container, memoized({ filter: "a" }));
       expect(renderFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps props independent for sibling thunks from the same memoized renderer", () => {
+      type Props = { label: string };
+      const memoized = memo(({ label }: Props): VNode => ul(".item", label));
+
+      patch(
+        container,
+        div(".parent", [memoized({ label: "first" }), memoized({ label: "second" })])
+      );
+
+      expect(document.body.textContent).toBe("firstsecond");
     });
   });
 });

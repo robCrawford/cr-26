@@ -33,23 +33,38 @@ export function memo<TProps extends Record<string, unknown>>(
 
   let propKeys: string[] | null = null;
   let latestProps: TProps;
+  let initialProps: TProps | undefined;
   let cachedSelector: string | undefined;
   let firstVNode: VNode | undefined;
+  let firstVNodeArgs: unknown[] | undefined;
 
-  // Returns the cached first VNode on the initial snabbdom `init` hook call to avoid a double-render,
-  // then delegates to renderFn for all subsequent calls
-  const stableRenderFn = (): VNode => {
-    if (firstVNode) {
+  const stableRenderFn = (...dependencies: unknown[]): VNode => {
+    if (
+      firstVNode &&
+      firstVNodeArgs?.length === dependencies.length &&
+      firstVNodeArgs.every((dependency, index) => dependency === dependencies[index])
+    ) {
       const vnode = firstVNode;
       firstVNode = undefined;
       return vnode;
     }
-    return renderFn(latestProps);
+
+    if (dependencies.length === 0 || !propKeys) {
+      return renderFn(latestProps);
+    }
+
+    const propsTemplate = initialProps ?? latestProps;
+    const renderProps = propKeys.reduce<TProps>(
+      (props, key, index) => Object.assign(props, { [key]: dependencies[index] }),
+      { ...propsTemplate }
+    );
+    return renderFn(renderProps);
   };
 
   return (props: TProps): VNode => {
     if (!propKeys) {
       propKeys = Object.keys(props);
+      initialProps = { ...props };
     }
     latestProps = props;
     const dependencies = propKeys.map((k) => props[k]);
@@ -60,9 +75,7 @@ export function memo<TProps extends Record<string, unknown>>(
         throw new Error("memo: renderFn must return a VNode with a selector (e.g. ul, div#id)");
       }
       cachedSelector = firstVNode.sel;
-    } else if (firstVNode) {
-      // Props updated again before snabbdom consumed firstVNode — discard the stale cached render
-      firstVNode = undefined;
+      firstVNodeArgs = dependencies;
     }
 
     // thunk(selector, key, renderFn, [stateArguments])
